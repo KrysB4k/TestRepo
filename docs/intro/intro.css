@@ -1,0 +1,33 @@
+body {
+  margin: 0;
+  text-align: justify;
+  line-height: 1.5;
+  font-size: 110%;
+}
+
+ul {
+  line-height: 1.25;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+h1 {
+  text-align: center;
+}
+
+hr {
+  margin: 48px 0;
+}
+
+span.var {
+  color: #324048;
+  font-family: 'Consolas';
+  font-size: 95%;
+  font-weight: bold;
+}
+
+canvas {
+  cursor: pointer;
+}
