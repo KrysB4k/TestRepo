@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>2 – Update functions</title>
+	</head>
+	<body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+		<link rel="stylesheet" href="styles.css"/>
+		<script src="copycode.js"></script>
+    <h1>Update functions</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter1_5.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter2_5.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+		<br>
+		The moment we’ve all been waiting for…<br><br>
+    Up to this point, we have seen effects that may have been great for adding some extra eye-candy to you level, but were otherwise ambient and didn’t have much influence on the world around them. Starting from this chapter, we will be implementing particles that exhibit complex, dynamic behavior and can have tangible effects on the game itself, beyond just the graphical qualities they provide. Particles, which can be characterized by reactivity and/or interactivity (with Lara, other entities or the room geometry). This is made possible thanks to update functions, which allow to define the behavior a particle group will exhibit. This mechanism permits the particles to act in a user-defined way and have unique attributes (such as colliding with the environment, setting Lara on fire, doing damage on contact with an enemy, homing onto a target, etc).<br><br>
+		More than anything else, it is this ability to code custom behavior which sets apart the particles offered by this plugin from the particles you have seen before, in FLEP or the classic engine. The incredible flexibility provided by update functions in tandem with the various API functions allows one to script things ranging from new traps, new weapons and attacks for both Lara and her foes, magical abilities, unique puzzles, never seen before gameplay mechanics, the list goes on.<br><br>
+		This feature is very powerful, but as we all know, “<i>with great power comes great responsibility</i>”. It can easily lead to some disastrous results (including but not limited to: crashing the game) if you are not being cautious, so tread carefully.<br><br><br>
+    In the first section of the chapter, we will return to the previously neglected update function of the dust effect from <strong>Chapter 1</strong>. This time around, I’ll give a proper explanation of update functions and how to write a simple one that makes the particles animate.<br><br>
+		Afterwards, we will learn of the <strong>t-parameter</strong> property of particles, which allows to correlate a particle’s age with another property through some mathematical formula. A specific example of this will be given in the section on shaping particle trajectories. We will also revisit the t-parameter in context of explaining how the <span class="var">sizeCust</span> and <span class="var">colCust</span> override fields work.<br><br>
+		There is an optional bonus chapter at the end that dives deeper into the trajectory-shaping topic and explains how you create parametric formulas for velocity in general, by applying differentiated functions.<br><br>
+    Similarly to Chapter 1, this chapter is also split into two halves for convenience, otherwise it would make for a very long read.<br>
+		<hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Update functions, for real this time</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Particle t-parameter</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Shaping particle trajectories</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Particle sizeCust and colCust</a><br>
+    	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Bonus: parametric expressions for velocity</a><br>
+		</strong><br>
+		<hr>
+    <a name="id1"><h3>Update functions, for real this time</h3></a>
+    Back in <strong>Chapter 1</strong>, when we created our <a href="Chapter1.html#id1">dust particle effect</a>, we started writing an update function for it. However, we quickly abandoned it when it became apparent that we don’t need it for our dust effect.<br><br>
+    Don’t worry, we will be bringing that poor little update function back from oblivion now! Let’s recall the entire dust module script, including the (then commented out) <span class="var">dustUpdate()</span> function:
+    <div class="code">
+			<button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+	    local dustgroup<br><br>
+	    local function dustInit()<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgroup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getLaraIndex() <span class="com">-- get Lara's tomb4 index</span><br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 4 <span class="com">-- 30 frames * 4 = 4 seconds</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = randint(150, 300)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart * 3 <span class="com">-- make dust slowly expand over time</span><br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = randint(130, 150)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(100, 120)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = randint(70, 85)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize position</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;local dx = randfloat(-512, 512)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;local dy = randfloat(-512, 512)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;local dz = randfloat(-512, 512)<br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- since we assigned an emitterIndex, the particle spawn position is in relation to the emitter item</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = dx<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = dy<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = dz<br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize velocity</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.vel.x = randfloat(-5, 5)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.vel.y = randfloat(-5, 5)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.vel.z = randfloat(-5, 5)<br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 0 <span class="com">-- "smoke" sprite texture</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 30 <span class="com">-- fade in for 1 second</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30 <span class="com">-- fade out for 1 second</span><br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize rot and rotVel</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;local degrees = randint(0, 359)<br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.rot = degToRad(degrees)<br><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;local rotspeed = randomNegate(randfloat(2, 4)) <span class="com">-- generate a random value between 2 and 4, negate it half of the time</span><br>
+	    &nbsp;&nbsp;&nbsp;&nbsp;part.rotVel = degToRad(rotspeed)<br>
+	    end<br><br>
+	    <span class="com">--[[<br>
+	    local function dustUpdate(part)<br>
+	    end<br>
+	    --]]</span>
+			<br>
+	    <br>
+	    <span class="com">-- creation of our particle group and assigning it to the variable</span><br>
+	    dustgroup = createGroup(dustInit, nil) <span class="com">-- passing nil in place of our dustUpdate</span>
+		</div>
+		<br>
+		<h4>Recovering the update function</h4>
+    First things first, we’ll uncomment the <span class="var">dustUpdate()</span> function. We can do this either by removing the multiline comment tags or adding an extra minus to the opening comment tag,&nbsp;<span class="var">---[[</span>&nbsp;. Both ways are acceptable, it will opt to simply remove the comment tags altogether. The next step is to restore <span class="var">dustUpdate</span> as the second argument to <span class="var">createGroup()</span>, in place of the <span class="var">nil</span> value we put before:
+    <div class="code">
+    local function dustUpdate(part)<br>
+    end<br><br>
+  	<span class="com">-- creation of our particle group and assigning it to the variable</span><br>
+    dustgroup = createGroup(dustInit, dustUpdate) <span class="com">-- restored dustUpdate as second argument</span>
+	  </div>
+	  By the way, I feel like I should explain why I generally write the parentheses after the name of a function, e.g. <span class="var">dustUpdate()</span>, but specifically when speaking of passing the function as an argument to a function like <span class="var">createGroup()</span>, I drop the parentheses, i.e. <span class="var">dustUpdate</span>.<br><br>
+	  This inconsistency is not by mistake or due to negligence. When I write the name of a function generally, I add the parentheses to emphasize it being a function (and not an ordinary variable). However, when I talk of passing a function as an argument to another function, I deliberately omit the parentheses after the name. This is because attempting to pass the function with parentheses to its name, like for example:
+	  <div class="code">
+	  dustgroup = createGroup(dustInit(), dustUpdate() ) <span class="com">-- this is incorrect!</span>
+		</div>
+	  is improper syntax in Lua. In the above snippet, we are no longer passing the <span class="var">dustInit()</span> and <span class="var">dustUpdate()</span> functions as arguments, but rather <i>calling</i> each function without any arguments, then passing the returned values (or rather lack thereof, since neither should return anything according to our rules!) as the actual arguments passed to <span class="var">createGroup()</span>. If the functions were to return something, like a number, we would be passing that returned number as an argument to <span class="var">createGroup()</span> (this is not what <span class="var">createGroup()</span> is expecting to receive as arguments, the plugin will complain). If the functions do not return anything (as is in our case), it is the same as passing <span class="var">nil</span> instead of the function. Effectively, the <span class="var">createGroup()</span> call turns into <span class="var">createGroup(nil, nil)</span>. This is the same problem as we had by not respecting the correct order of the code back in Chapter 1, <a href="Chapter1.html#order">if you remember</a>.<br><br>
+	  If this does not make sense to you with the above explanation, it may help to look at this from another angle. Remember when I said that function names are really <a href="LuaManual.html#funcvars"><strong>disguised variables</strong></a>? This means that the variable is storing a value. What value, exactly? The definition of some function (this is an oversimplification, but assume that’s what happens when you ask for a function’s “value”). When we want to pass a Lua function as an argument, we want to pass its value (the definition), and not its result, so we are treating it as we would any other variable that holds a value. To simply get a value from a variable, we don’t use parentheses, right?<br>
+		To emphasize the difference between calling functions and passing them as arguments, I will omit the parentheses to indicate that a function will not be called, but rather passed as an argument to another function (i.e. treated as a variable with a value). In all other cases, I’ll refer to the function with parentheses attached to its name.<br><br>
+		<h4>How update functions work</h4>
+		Coming back to our group definition, we are now constructing our group with both an init and an update function. Of course, our update function is not doing anything at the moment. But before we do that, we should first be able to answer the question – what <i>are</i> update functions?<br><br>
+		I already mentioned a few times by now that the update function expects a single argument, a particle instance. The function argument’s name becomes an alias for the particle instance it is currently working on. We can choose whatever alias we want, really, but in these tutorials we always use the name <span class="var">part</span>.<br><br>
+	  <i>But wait,</i> – you might ask – <i>doesn’t that go against the rule of not using an identical name for another variable in the script? After all, we’ve already used </i><span class="var">part</span><i> as a name for the variable in the </i><span class="var">dustInit()</span><i> function…</i><br><br>
+	  Fret not, in this case it doesn’t matter. The reason why it’s okay to used the name <span class="var">part</span> in both the <span class="var">dustInit()</span> and <span class="var">dustUpdate()</span> functions is because these are, in fact, two unrelated variables. Both are enclosed within the scope of their respective functions (one being the init, the other being the update), not in an outer scope of the script, like the <span class="var">dustgroup</span> variable, for example. If we were to use <span class="var">part</span> more than once in the main script scope, outside of all functions, if blocks and for loops, then indeed we would be dealing with a name collision and could run into problems. But in our case, the <span class="var">part</span> variables are occupying two different locations in the code and Lua is smart enough to recognize that these are not identical, but completely distinct variables that just happen to use the same name in their respective scopes (one scope is the init function, the other scope is the update function). If you want to be extra careful though, you may of course use a different name in the update function. Just use another short one for your own sake, unless you love typing a lot.<br><br>
+		Anyway, what purpose does the argument <span class="var">part</span> serve to <span class="var">dustUpdate()</span>? Simply put, <span class="var">part</span> is one of the particles belonging to the group. During each in-game frame, the particle system iterates through all currently existing particles and, on top of performing generic updates to each of those particles (like updating their positions or decreasing their life counters), it calls the update function we assigned to the group (unless <span class="var">nil</span> was used in its place, that is), passing the current particle through the <span class="var">part</span> argument.<br>
+		<img class="fig" src="ch2/update.png">
+		Given that update is called for each of the particles in the group, <span class="var">part</span> becomes the alias of the <i>specific</i> particle on which the update function was called. This way, every particle in the group has the opportunity to be modified by its designated update function on each game tick. In our update function, through the <span class="var">part</span> alias, we have access to the particle’s properties, including all of the properties we have talked about in the chapters prior to this one. We can then inspect or change the particles’ positions, velocities, rotations, sizes, colors, so on and so forth, to our own will and liking!<br><br>
+	  Okay, enough of the exposition, already. Time to make the update function actually do something with our particles!<br><br>
+		<a name="update"><h4>Writing a simple update function</h4></a>
+	  How about this – for testing purposes, we make the particles change their sprite texture on every frame. They will start out with <span class="var">part.spriteIndex = 0</span> in the init function, then keep iterating through the different textures from <strong>DEFAULT_SPRITES</strong> in the update.<br>
+		The update function should look something like this:
+	  <div class="code">
+	  local function dustUpdate(part)<br>
+	  &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = part.spriteIndex + 1<br>
+	  end
+		</div>
+	  Nothing too sophisticated, as you see. We are getting the current value of <span class="var">part.spriteIndex</span>, adding 1 and assigning this new value back to <span class="var">spriteIndex</span>. Easy, right?<br><br>
+    Let’s run the game and see what we have. We launch the level and…<br>
+		<img class="fig" src="ch2/ch2_g1.gif"><br>
+		Indeed, all of the particles animate through the sprite textures, but only once, then they stop at the last texture! Not only that, but if we enable the console to see what’s going on behind the scenes, we’re being bombarded with warning messages:<br>
+		<img class="fig" src="ch2/update_error.png"><br>
+    Don’t worry, we can fix this. We have just blundered with the above code for increasing the <span class="var">part.spriteIndex</span>, that’s all. To learn why this doesn’t work, let’s inspect the <strong>DEFAULT_SPRITES</strong> object in WadTool, WadMerger’s sprite editor or the sprite tool in NG Center (on the first Tools tab). If you are using an unmodified <strong>DEFAULT_SPRITES</strong>, we can see that there are 33 textures, indexed 0 to 32.<br><br>
+    The particles first have texture 0, as we indicated in the init function. The update function makes <span class="var">part.spriteIndex</span> move to texture 1, then 2, then 3… if we continue this pattern, we eventually reach the last texture at index 32. What happens during the update that point? The index will increase to 33, but… there is no texture with that index number in the <strong>DEFAULT_SPRITES</strong>!
+    This situation, if left unmanaged, would result in a nasty crash, since the Tomb4 engine would not know how to handle it. However, as we have just seen, the particles simply stop updating their texture upon reaching the final one, why is that? This is a protective measure within the plugin. To ensure that this crash never occurs, if the <span class="var">part.spriteIndex</span> goes beyond the number of existing sprite textures, the plugin sets it back to the highest possible texture index. Consider it a kind gesture from the plugin developers… ;)<br><br>
+  	But you probably don’t want the particle to animate only a single time and stop, it would be better if this animation would repeat over and over again!
+    Since the number of textures in (unmodified) <strong>DEFAULT_SPRITES</strong> is 33 and we want the update function to keep going through all the indices 0-32, but never go above 32, there is a specific <a href="LuaManual.html#arith">arithmetic operator</a> that solves this exact problem. Do you remember which one? I hope you had the modulo operator <span class="var">%</span> in mind. If you did not, then… nothing, just remember it from now on!<br><br>
+    We first need to put the expression where we increment the sprite in parentheses. As you recall from mathematics, when something is in parentheses, that calculation is performed first. After the closing parenthesis we place the modulo operator <span class="var">%</span> with the total number of sprite textures in <strong>DEFAULT_SPRITES</strong> (33) as the dividend:
+    <div class="code">
+    local function dustUpdate(part)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = (part.spriteIndex + 1) % 33<br>
+    end
+	  </div>
+	  Let’s try running it in game again.<br>
+		<img class="fig" src="ch2/ch2_g2.gif"><br>
+		Problem averted! Though the aesthetic quality of such particles is questionable, we see they loop flawlessly through all of the textures in <strong>DEFAULT_SPRITES</strong>.<br><br>
+	  You can actually use this approach to make particles animate through a looping sprite sequence (and not a bunch of unrelated sprites as in our example). However, I’ll soon demonstrate a function called <span class="var">particleAnimate()</span> that does this for us and allows to set both the exact range and the framerate for this animation.<br>
+		<hr>
+	  <a name="id2"><h3>Particle t-parameter</h3></a>
+	  As you know by now, a particle has two life properties. The first one, <span class="var">part.lifeSpan</span>, as the name implies, describes the total amount of life the particle has. The other life property, <span class="var">part.lifeCounter</span>, counts down the remaining life of the particle. In the init function it is implicitly assigned the same amount as <span class="var">part.lifeSpan</span>, but afterwards is automatically decreased by 1 on each game tick. Once <span class="var">part.lifeCounter</span> reaches 0, the particle dies and is no longer updated or drawn by the particle system.<br><br>
+	  Let’s ponder for a moment about the following. Assume we wanted to have a general way to describe a particle’s “age”, regardless of its actual <span class="var">lifeSpan</span> or <span class="var">lifeCounter</span> value. Something of a percentage of elapsed life. How could we do that?<br><br>
+		Instead of using the particle’s <span class="var">part.lifeCounter</span> values, we instead imagine such “age” as a decimal value between 0.0 and 1.0 (i.e equivalent to a percentage between 0% and 100%). At 0.0, the particle has been newly born into the world. At 1.0 (100%), the particle reached the end of its life and ceases to exist. All in-between values describe the percentage of how far a given particle is into its life course, regardless of the actual <span class="var">lifeSpan</span> and <span class="var">lifeCounter</span> the particle in question has. For example, a value of 0.5 would mean that the particle is halfway through its existence (and likely experiencing a mid-life crisis).<br><br>
+	  Jokes aside, having the <span class="var">lifeSpan</span> and <span class="var">lifeCounter</span> values, how do we obtain this “current lifestage” percentage value? It’s actually a pretty simple calculation of the form:<br><br>
+	  <span class="var">
+	  age = (part.lifeSpan - part.lifeCounter) / part.lifeSpan</span><br><br>
+	  We just subtract <span class="var">part.lifeCounter</span> from total <span class="var">part.lifeSpan</span> and divide the result by <span class="var">part.lifeSpan</span> again. This value will always be somewhere between 0 and 1, regardless of how big or small <span class="var">lifeCounter</span> and <span class="var">lifeSpan</span> really are (that is, unless you tamper with the <span class="var">part.lifeCounter</span> value, which you should not do, as we will learn in the section about immortal particles).<br><br>
+	  Fortunately, we don’t have to carry out this calculation ourselves whenever we want to use this value. Particles provide a special read-only property called the <strong>t-parameter</strong>, with the field name <span class="var">part.t</span> (that is, a single lowercase t), which gives this 0 to 1 age fraction value for the particle:
+	  <div class="code">
+	  part.t <span class="com">-- read-only property, gives a 0 - 1 normalized age for the part</span>
+		</div>
+		Okay, that’s great and all, but what would this t-parameter even be useful for?<br><br>
+	  Well, picture the following situation. You would like another particle property, like its size, color or velocity, to depend on this “lifestage” value in some way. Since it’s always in the predictable range 0 to 1 (unlike <span class="var">part.lifeCounter</span> values), by applying some math you can come up with a formula that translates the 0-1 value of <span class="var">part.t</span> to a value usable for the size, color or velocity.<br>
+	  You may say that for velocity we already have a way to change it without using an update function, which would be using acceleration. I say – okay, but what if we want the particle move in a circular orbit? This involves a continuous change in acceleration (along with velocity and position) over time, we can’t just set the <span class="var">part.accel</span> vector in init and be done with it. This forces us to use an update function, no way around it.<br><br>
+		Here’s where the t-parameter can shine – since its value is guaranteed to be between 0 to 1 and increases at a constant rate as the particle gets older, we can create an equation that makes the velocity depend on this t-parameter in some way.<br><br>
+	  Perhaps you still don’t see the full picture of all of this. Well, let’s see an example in the next section!<br>
+		<hr>
+	  <a name="id3"><h3>Shaping particle trajectories</h3></a>
+	  We will now entertain a scenario in which we want the particle velocity to depend on the age percentage in some way. The specifics of it are entirely up to us. If you need a suggestion, what about using the trusty trigonometric functions, <span class="var">sin()</span> and/or <span class="var">cos()</span>? To come up with a velocity formula, we’ll utilize what we know of the t-parameter. Considering it has a 0-1 range, regardless of the particle life span, we can perform mathematical operations on the value given by <span class="var">part.t</span> to end up with a velocity corresponding to the current age of the particle. The <span class="var">sin()</span> and <span class="var">cos()</span> functions are <i>continuous</i> (without any gaps) and <i>periodic</i> (repeating). They repeat with an interval of 2π (2*pi) radians and smoothly oscillate between values of 1 and -1. If this language didn’t speak to you, or perhaps you’re blanking out because you have not dealt with any of this in a long time, look at the graphs of both functions below, they should jog your memory:
+		<img class="fig" src="ch2/sin_plot.png"><br>
+		<img class="fig" src="ch2/cos_plot.png"><br>
+		The function graphs look mostly identical, the difference is that <span class="var">cos()</span> is shifted in regards to <span class="var">sin()</span>, since the peaks and valleys do not line up with each other (we say that <span class="var">cos()</span> is <i>phase shifted</i> by π/2 compared to <span class="var">sin()</span>, i.e. <span class="var">cos(x) = sin(x + π/2)</span>). Another implication of this is that the “cycle” (formally referred to as the <i>period</i>) for <span class="var">sin()</span> starts at the output value 0, whereas for <span class="var">cos()</span> it starts at 1. Apart from those two features, the functions are very similar in how they behave, having both the same amplitude and frequency. We can take advantage of these characteristics to make particles move in “squiggles” or “waves”, for instance.<br><br>
+		<h4>Waving particles</h4>
+	  To achieve an undulating “wave” of particles, we can give particles a Y velocity derived from the sine function output given an input of <span class="var">part.t</span>, paired with a constant (unchanging) velocity for one (or both) of the horizontal axes, X and Z. This sounds a lot scarier than it actually is, you’ll see.<br><br>
+		Given the below orangish-pink particles with a <span class="var">part.lifeSpan</span> of 240 (8 seconds), spawning from an emitter item with NGLE index 3:
+	  <div class="code">
+			<button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+		  local wave<br><br>
+		  local function waveInit()<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(wave)<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3)<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 240<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = randint(64, 128)<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 14<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 30<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = 255<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(96, 128)<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = randint(96, 128)<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd.r = randint(192, 255)<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;part.colEnd.g = part.colStart.g - 30<br>
+			&nbsp;&nbsp;&nbsp;&nbsp;part.colEnd.b = part.colStart.b + 30<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;local dx = randfloat(-512, 512)<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;local dy = randfloat(-64, 64)<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;local dz = randfloat(-64, 64)<br><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = dx<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = dy<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = dz<br>
+		  end
+		</div>
+		we’ll come up with an update function which modifies the Y velocity component using the sine function. We use <span class="var">part.t</span> inside the <span class="var">sin()</span> function, as so:
+		<div class="code">
+		  local function waveUpdate(part)<br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.vel.y = sin(part.t) <span class="com">-- velocity derived from the sin() function</span><br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;part.vel.z = -20 <span class="com">-- constant Z velocity</span><br>
+		  end<br><br>
+		  wave = createGroup(waveInit, waveUpdate)
+		</div>
+		As you see, in the <span class="var">waveUpdate()</span> function we’re setting a Y velocity via the formula <span class="var">-sin(part.t)</span> and for the Z velocity we set the constant value <span class="var">-20</span>.<br><br>
+		We give it a run in game, and uhh…<br>
+		<img class="fig" src="ch2/ch2_img1.jpg"/><br>
+		the particles aren’t really waving that much, but moving in a rather straight line. Because the raw value of <span class="var">part.t</span> is between 0 and 1, maybe it’s too small for the wavy nature of <span class="var">sin()</span> to become apparent? We should make it larger.<br><br>
+		Since trigonometric functions anticipate radians as input, a good start would be to multiply <span class="var">part.t</span> by 2*π, the interval of the sine function. By doing so, the particles should at least complete a single “wave”. For our purposes, we will take the well-known approximation of pi, <span class="var">3.14</span>.<br>
+		We’ll make the following modification for calculating the Y velocity in the <span class="var">waveUpdate()</span>:
+		<div class="code">
+		  part.vel.y = sin(part.t * 2 * 3.14)<br>
+		</div>
+		<img class="fig" src="ch2/ch2_img2.jpg"/><br>
+		Erm… still no evident waving. Let’s remind ourselves that <span class="var">sin()</span> and <span class="var">cos()</span> functions return values in the -1 to 1 range, making the resulting Y velocity oscillations very tiny. Let’s turn it up a notch by multiplying the returned result by 20 (or something in that ballpark).
+		<div class="code">
+		  part.vel.y = sin(part.t * 2 * 3.14) * 20<br>
+		</div>
+		<img class="fig" src="ch2/ch2_img3.jpg"/><br>
+		Okay, now we’re able to see something! The wave shape is more pronounced, at least.<br><br>
+		If you are paying close attention, assuming that we are looking at the traced curve as if it started out at the origin point (0, 0) on the graphs above, you may notice the shape of the curve does not match up with the graph for <span class="var">sin(x)</span>, despite us using the <span class="var">sin(x)</span> function. No, the functions didn’t get mixed up with one another, there are different reasons for this.<br><br>
+		Reason number one: in the TR engine, the direction for the Y axis is inverted, so as it decreases to lower and more negative values, you go higher up. That’s an easy fix, we just need add a minus in front of the call to <span class="var">sin()</span>, in order to negate the output. But, that’s not all.<br><br>
+		The other reason why it does not match up with the <span class="var">sin(x)</span> graph is because we are modifying the <u>velocity</u> (rate of change to position) of the particles, rather than <u>position</u> directly. We cannot simply reapply the formula we’d use for position, as if it were the formula for velocity, because in the majority of cases, the result will be vastly different. The reasoning behind it is a mathematical concept known as <i>calculus</i>. I give a very brief overview of it in the bonus section on <a href="#calculus">parametric expressions</a> (at the end of this chapter). But I will not bother you with it right now, all you need to know is that if we want the shape of the curve to match up with <span class="var">sin(x)</span> when we are modifying the <u>velocity</u> and not <u>position</u>, we should actually use the <span class="var">cos()</span> function. So the expression changes to:
+		<div class="code">
+	    part.vel.y = -cos(part.t * 2 * 3.14) * 20<br>
+	  </div>
+		<img class="fig" src="ch2/ch2_img4.jpg"/><br>
+		 Nice, we finally have a proper wave of particles. One interval is a bit boring, though, so let’s squeeze in more of them. The way to do that is very simple. Instead of multiplying <span class="var">part.t</span> by 2π, multiply it by 6π, which should result in 3 complete intervals during each particle’s life:
+	  <div class="code">
+	    part.vel.y = -cos(part.t * 6 * 3.14) * 20<br>
+	  </div>
+		<img class="fig" src="ch2/ch2_g5.gif"/><br>
+		Ah, wonderful!<br><br>
+		<h4>Animating the wave through time</h4>
+		What if we went a step further and made the wave shape animate over time? It's easy to achieve, we need to add a time variable into the expression. And by time variable, I mean <span class="var">getGameTick()</span>. Unfortunately, the raw game tick value will increase way too fast to achieve a nice effect. We can downsize it by a factor of, say, <span class="var">0.002</span>, then add it to <span class="var">part.t</span> inside parenthesis, before scaling it by 6π:
+		<div class="code">
+			local time = getGameTick() * 0.002<br>
+	    part.vel.y = -cos((part.t + time) * 6 * 3.14) * 20
+	  </div>
+		<img class="fig" src="ch2/ch2_g6.gif"/>
+		<i>Voilà!</i><br><br>
+		I’ll share a neat tidbit with you - you don’t actually need to remember the value of π to use it in scripts. You can obtain its value (well, a very good approximation) by typing the constant <span class="var">PI</span>, in all-caps. With this, the formula can be rewritten as:
+		<div class="code">
+			part.vel.y = -cos((part.t + time) * 6 * PI) * 20<span class="com">-- using the PI built-in constant</span>
+		</div>
+		Lua will step in and convert the <span class="var">PI</span> constant to the (approximate) π value when parsing the script. There are a few more variants: <span class="var">PI_HALF</span> (pi/2), <span class="var">PI_THIRD</span> (pi/3), <span class="var">PI_QUART</span> (pi/4) and <span class="var">PI_TWO</span> (pi*2).<br><br>
+		Hopefully, the concept of shaping particle trajectories by using <span class="var">part.t</span> is not too complicated to grasp. You just need to know what mathematical calculations to use with <span class="var">part.t</span> to get your desired shape, which depending on your expertise in maths, can get tricky. The bonus section at the end of the chapter delves deeper into this topic. If that’s not something that really interests you, proceed to the next section on particle <span class="var">sizeCust</span> and <span class="var">colCust</span> properties.<br>
+		<hr>
+		<a name="id4"><h3>Particle sizeCust and colCust</h3></a>
+		When it comes to the particle size and color properties, there are respective <span class="var">_Start</span>, <span class="var">_End</span> and <span class="var">_Cust</span> variants for them. All the way back in Chapter 1, when we learned about about these properties in context of init functions, I said that only the <span class="var">_Start</span> and <span class="var">_End</span> variants are important in init, while the <span class="var">_Cust</span> variants are only useful in update functions. Since update functions are now our topic of interest, it’s time to cover the <span class="var">_Cust</span> variants as well.<br><br>
+	  <span class="var">_Start</span> and <span class="var">_End</span> property variants (for size and color) were used in init functions to indicate the initial and final values (respectively) of a particle property. A particles size would be somewhere between <span class="var">part.sizeStart</span> and <span class="var">part.sizeEnd</span>, depending on the age of the particle. Side note: do you see the connection with the t-parameter here? It is also involved in determining the current size from the Start and End values. The formula for it, carried out inside the plugin, resembles something like this:<br><br>
+		<span class="var">sizeNow = sizeStart * (1 - part.t) + sizeEnd * part.t</span><br><br>
+		Side note: the general expression of the form <span class="var">c = a * (1-t) + b * t</span> (where <span class="var">t</span> is between 0 and 1) is known as a <i><strong>l</strong>inear int<strong>erp</strong>olation</i>, or a <strong><i>lerp</i></strong>. I am bringing your attention to it, because it’s very useful and we will be encountering it quite often, in the form of the API function <span class="var">lerp()</span>.<br><br>
+		The same speech applies to how <span class="var">part.colStart</span> and <span class="var">part.colEnd</span> behave. The current color of the particle is linearly blended between these two colors depending on how old the particle is.<br><br>
+		What are the <span class="var">_Cust</span> fields for, then? If we do not make any assigments to them, they simply carry the blended (<span class="var">_Now</span>) values of the properties they represent. However, when you assign some value, like a size to the particle’s <span class="var">sizeCust</span> field or a color to the <span class="var">colCust</span> field, this will result in overriding the blended size (or color) calculated from the start and end values.<br><br>
+		Importantly, this overriding of the value is valid for only one frame when it has been assigned. Afterwards, the particle system sets the size (color) with the re-calculated blended value for the next frame again. This is why assigning to <span class="var">_Cust</span> variants in init is pointless, as we need to override the blended values from the particle system on every frame to see the result. Fortunately, this job can be perfectly fulfilled by the update function, whose job it is to change particle properties on every single frame.<br><br>
+		<h4>Modifying sizeCust</h4>
+		You can combine the knowledge regarding the t-parameter and <span class="var">part.sizeCust</span> to make the size of a particle depend on the “lifestage” given by the <span class="var">part.t</span>. For example, making the particle dynamically grow and shrink.<br><br>
+	  In my opinion, dealing with <span class="var">part.sizeCust</span> is rather straightforward, you just assign the size values, given by your custom formula, in update. Below is a simple example:
+		<div class="code">
+			local t = part.t * 20 * PI<span class="com">-- pre-multiply the t-parameter and save it in a var</span><br>
+			part.sizeCust = sin(t) * 100 + 150 <span class="com">-- oscillates size between 50 and 250
+		</div>
+		We are getting <span class="var">part.t</span>, multiplying it by <span class="var">PI * 20</span> and saving it to a variable <span class="var">local t</span>. The multiplication factor <span class="var">20*π</span>, should result in 10 full oscillations of the sine wave during the particle lifeSpan. We then take the <span class="var">local t</span> value and pass it to <span class="var">sin()</span>. The result of <span class="var">sin(t)</span> is multiplied by <span class="var">100</span>. This should give a value in the range <span class="var">&lt;-100, 100&gt;</span>. Particles cannot have negative size though, so we add 150 on top of that, shifting the oscillation range to <span class="var">&lt;50, 250&gt;</span>. We assign this final result to <span class="var">part.sizeCust</span>. This should result in the particle nicely oscillating its size, in 10 cycles, between 50 and 250.<br>
+		<img class="fig" src="ch2/ch2_g7.gif"/><br>
+			What would be the difference if we used the value of <span class="var">getGameTick()</span> instead of <span class="var">part.t</span>? Well, since the game tick is uniform and not unique to each particle, all the particles would be synchronized with each other, growing and shrinking at the same time. Differently, <span class="var">part.t</span> will give the individual age of each particle, so they grow and shrink independently of each other.<br><br>
+		<h4>The remap function</h4>
+		When it comes to moving a value from one range to another, like we just witnessed in the last example:
+		<ul>
+			<li>scaling <span class="var">part.t</span> from <span class="var">&lt;0, 1&gt;</span> to <span class="var">&lt;0, 20π&gt;</span>;</li>
+			<li>moving the output of <span class="var">sin(t)</span> from <span class="var">&lt;-1, 1&gt;</span> to <span class="var">&lt;50, 250&gt;</span></li>
+		</ul>
+		there comes a very handy little function from the API, called <span class="var">remap()</span>. It requires 5 arguments in total:
+		<div class="code">
+			remap(x, oldMin, oldMax, newMin, newMax) <span class="com">-- remaps argument "x" from &lt;oldMin, oldMax&gt; to &lt;newMin, newMax&gt;</span>
+		</div>
+	 	To call this function, we must specify the <span class="var">x</span> value which will be remapped, the original min-max range of the x value with the pair <span class="var">oldMin, oldMax</span>, then finally the new range, via <span class="var">newMin, newMax</span>.<br><br>
+		We must do two remappings. The first one, to scale <span class="var">part.t</span> by <span class="var">20π</span>:
+		<div class="code">
+			local t = remap(part.t, 0, 1, 0, 20 * PI) <span class="com">-- remap part.t to &lt;0, 20π&gt;</span>
+		</div>
+		and then the second one, take the output of <span class="var">sin(t)</span> from <span class="var">&lt;-1, 1&gt;</span> to <span class="var">&lt;50, 250&gt;</span>:
+		<div class="code">
+			part.sizeCust = remap(sin(t), -1, 1, 50, 250) <span class="com">-- remap sin(t) to &lt;50, 100&gt;</span>
+		</div>
+		These remap function does the same thing as the mathematical calculations from before, but I think it simplifies obtaining the correct values, as you do not need to think about how much to multiply and add to get your expected result. The only caveat is knowing what the original range of the remapped <span class="var">x</span> value is. For <span class="var">part.t</span> it’s <span class="var">&lt;0, 1&gt;</span>, while for the trigonometric functions, <span class="var">sin()</span> and <span class="var">cos()</span>, the range is <span class="var">&lt;-1, 1&gt;</span>.<br><br><br>
+		<h4>Modifying colCust</h4>
+		Changing particle size on the fly is really neat, but changing colors is even cooler! I will show an example of modifying <span class="var">part.colCust</span> by using another great function from the API, <span class="var">colorHSV()</span>.<br><br>
+		<h4>HSV Color Space</h4>
+	  The function <span class="var">colorHSV()</span> returs a ColorRGB object. Unlike the <span class="var">colorRGB()</span> function, it does not take values for the RGB channels. Instead, it takes arguments of <strong>H</strong>ue, <strong>S</strong>aturation and <strong>V</strong>alue, according to the <strong>HSV color space</strong>.
+	  The HSV space works differently than the RGB color space we talked about before. Instead of specifying the exact amounts of primary colors (Red, Green, Blue), the color is represented as a combination of <strong>Hue</strong>, <strong>Saturation</strong> and <strong>Value</strong>.<br><br>
+	  <ul>
+	  <li><strong>Hue</strong> is an angle (expressed in <u>degrees</u>, miraculously not radians!) between 0 and 360, representing a color wheel smoothly blending between hues of red, orange, yellow, green, blue, magenta/purple and back to red again. Conventionally, Hue 0 is red and begins the color wheel.
+	  <li><strong>Saturation</strong> describes how saturated the color is. At Saturation 0, the color is white, black or some shade of grey, with no identifiable hue (the Hue value can be anything, since it has no effect at Sat = 0). Conversely, all values of Saturation above 0 have an identifiable hue. Conventionally, the full saturation is at 1, which indicates no greyness in the color (full saturation).
+	  <li><strong>Value</strong> describes how dark or bright the color is. Like saturation, the conventional range for Value is between 0 and 1. At 0, the color is pitch black, RGB(0, 0, 0). Neither Hue nor Saturation influence the color at Value = 0. At Value = 1, the color has no "darkness". What this means depends further on the Saturation value. At Saturation = 1 and Value = 1, the color is fully saturated. However at Saturation = 0 and Value = 1, the color becomes fully white, RGB(255, 255, 255). At saturation around 0.5 and Value = 1 the color becomes a pastel shade, so more biased towards white.
+	  </ul><br>
+	  This HSV model of colors has some interesting implications. The Hue value, seen as an angle from 0 to 360 degrees, represents a continuous loop through the color spectrum. This suggests that it should be possible to cycle through it seamlessly.<br>
+	  That’s exactly what we will be doing, in the following example involving <span class="var">part.colCust</span>:
+		<div class="code">
+			local hue = getGameTick() <span class="com">-- game tick value is interpreted as angle for hue</span><br>
+			local sat = 1.0<br>
+			local val = 1.0<br>
+			part.colCust = colorHSV(hue, sat, val)<br>
+		</div>
+		The particles will oscillate between different hues as the game tick counter increases. They are oscillating uniformly, though, all at the same time. We delay this by including <span class="var">tParam</span> in the picture. We rework the formula for <span class="var">t</span>, first multiplying <span class="var">tParam</span> by 180, then adding <span class="var">getGameTick()</span> on top of it:
+		<div class="code">
+			local hue = part.tParam * 180 + getGameTick() <span class="com">-- introduce delay via tParam</span><br>
+			local sat = 1.0<br>
+			local val = 1.0<br>
+			part.colCust = colorHSV(hue, sat, val)<br>
+		</div>
+		<img class="fig" src="ch2/ch2_g8.gif"/><br>
+		By how much we multiply <span class="var">part.t</span>, we control the delay between the starting hue and ending hue. Have some fun with it and try out different combinations!<br><br><br>
+		In the above example, we were assigning colors directly to <span class="var">part.colCust</span>. Nothing is preventing us from accessing the RGB color components of <span class="var">colCust</span> individually. We can then control the value for each color channel with a separate formula. I just want to remind that the color fields accept only integers from the 0 - 255 range to each channel. Thus, we must remap whatever result we get, e.g. from a function like <span class="var">sin()</span>, to <span class="var">&lt;0, 255&gt;</span>.
+		<div class="code">
+			local t = part.t * 3 * PI<br>
+			local d = PI * 2 / 3<br><br>
+			local sinr = sin(t)<br>
+			local sing = sin(t + d)<br>
+			local sinb = sin(t + 2*d)<br><br>
+			part.colCust.r = remap(sinr, -1, 1, 0, 255)<br>
+			part.colCust.g = remap(sing, -1, 1, 0, 255)<br>
+			part.colCust.b = remap(sinb, -1, 1, 0, 255)
+		</div>
+		<img class="fig" src="ch2/ch2_g9.gif"/><br>
+		<hr>
+		As this chapter is quite long, Ive decided to split it in half. The next half continues with topics such as particle function, particles that spawn other particles.<br><br>
+		<hr>
+		<a name="id5"><h3>Bonus: parametric expressions for velocity</h3></a>
+		So, you’re curious to know why in the last section, the formula for velocity needed <span class="var">cos()</span> instead of <span class="var">sin()</span> to achieve a curve like <span class="var">sin(x)</span>?<br>
+		To explain why this is, I must go on a tangent about the exact mathematical relation between velocity and position. I know, there is a lot of maths as of late, but I told you this section is optional, if maths is not your cup of tea.<br><br>
+		<h4>To find a derivative…</h4>
+		When we think of velocity, what is the first thing that comes to mind? We can say it specifies the number of spatial units an object travels at an exact moment in time. Another way of phrasing this is by stating that velocity is the rate of change of position at a given point in time. It means that at that exact moment, the object travels this amount of spatial units (meters, kilometers, feet, miles) per unit of time (second, minute, hour) on the X, Y and Z axis.<br><br>
+		Notice that the phrase: “<i>rate of change at an exact point in time</i>”, though intuitively makes sense to us, is a bit nonsensical, after giving it some thought. After all, to calculate a rate of <i>change</i> to position, we need to measure the position coordinates at two different points in time, then get the difference between these two positions (i.e. the <i>change</i>) and divide it by the difference in time between the measurements. If we narrow it down to a single spatial dimension, we can imagine the object traveling along the X axis. If we have a current measurment <span class="var">(xNow, timeNow)</span> and a previous measurement <span class="var">(xPrev, timePrev)</span>, the formula to get the approximate velocity should look like this:<br><br>
+		<span class="var">
+		xVel = (xNow - xPrev) / (timeNow - timePrev)
+		</span><br><br>
+		If we are literal about the meaning of “an exact point in time”, this would imply that <span class="var">timePrev</span> is the same as <span class="var">timeNow</span>. Since&nbsp;&nbsp;<span class="var">(timeNow - timeNow)</span>&nbsp;&nbsp;will always result in 0, we end up dividing the difference in position by zero!<br><br>
+		<img class="fig" src="ch2/divisionby0.jpg"><br>
+		So it seems like there is no way to make sense of a “<i>rate of change at a given point in time</i>”… or is there?<br><br>
+		Mathematicians in the late 17th century (Newton and Leibniz) cleverly came up with something called <i>calculus</i>. It is a branch of mathematics dedicated to studying the rates of change (derivatives) and how numerous tiny changes add up to something (integrals). In calculus, to answer the above “paradox” of the immediate rate of change at an exact point in time, we don’t look at the rate when the time difference is exactly 0, but rather examine what the average given by the above formula tends to as the time difference gets closer and closer to 0. For example, a difference of 0.000001 seconds, rather than <i>exactly</i> 0 seconds. The smaller this difference is, the better approximation of the “<i>rate of change at a given point in time</i>” you end up with. However, even with this approach, it is ultimately just an approximation, thus we can’t obtain the precise value for a  “difference” of 0… or can we?<br><br>
+		Turns out, if the position is described as a function of time (function being used here in the mathematical sense) with a known mathematical formula behind it, you can almost certainly <u>derive</u> a correct formula for its <i>exact</i> rate of change at a given point in time. Notice the underlined <u>derive</u> word, because the process of finding this special function which gives the rate of change is called <i>deriving</i> the function, or alternatively, finding the function’s <i>derivative</i>. And it is this <i>derivative</i> that gives the formula for the <i>exact</i> rate of change (in our specific case, velocity). However, the process of deriving the function can get a bit tricky.<br><br>
+		Say you have the following function <span class="var">f(t)</span>, which gives an output based on the input of time, <span class="var">t</span>. The definition for <span class="var">f(t)</span> can be something like:<br><br>
+		<span class="var">
+		  f(t) = t³ + sin(t)<br><br>
+		</span>
+		This function can describe the position on an axis (e.g. X) in regards to time <span class="var">t</span>, so <span class="var">f(t)</span> can be seen as <span class="var">x(t)</span>:<br><br>
+		<span class="var">
+			x(t) = t³ + sin(t)<br><br>
+		</span>
+		The derivative function is the function denoted as <span class="var">x'(t)</span> (notice the apostrophe, which is pronounced “<i>prime</i>”). This derivative function will give the “instantaneous” velocity based on <span class="var">t</span> (as if we got it from a time difference of exactly 0). What would such a derivative function even look like? Once we work it out, we learn it will take the form of:<br><br>
+		<span class="var">
+		x'(t) = 3t² + cos(t)<br><br>
+		</span>
+		Even at a quick glance, the are some slight similarities between <span class="var">x(t)</span> and <span class="var">x'(t)</span>, right? In particular, the term <span class="var">sin(t)</span> turned into <span class="var">cos(t)</span>, which is what we have seen happen in the case of our wave particles.<br><br>
+		Trust me, I didn’t just pull this out of… thin air. I obtained the <span class="var">x'(t)</span> formula by applying something known as <i>differentiation rules</i> (also called <i>derivative rules</i>) to the function <span class="var">x(t)</span>. Specifically, I applied the <i>addition rule</i> to the whole expression, the <i>power rule</i> to <span class="var">t³</span> and the trigonometric rule to <span class="var">sin(t)</span>.<br><br>
+		I consider the topic of differentiation to be far outside the scope of a tutorial focused on particle scripting, so I will not venture into it. Nonetheless, I am signalling it for those readers who are inquisitive about this topic for further research. Online tools like <a href="https://www.wolframalpha.com/"><strong>WolframAlpha</strong></a> allow you to enter nearly any mathematical function, no matter how complex, and get its derivative function with respect to some variable, like x or t, with prompts of the form:<br>
+		<div class="code">
+		  [function formula] derivative<br>
+			[function formula] derivative with respect to [variable]
+	  </div>
+		We live in the era of AI chatbots, so ChatGPT might be tempting to use for this purpose. I wouldn’t count on it giving correct solutions, though, as LLM (Large Language Model) chatbots like ChatGPT are infamous for answering mathematical queries blatantly wrong. WolframAlpha is more reliable, gives more accurate answers tailored specifically to mathematical prompts and has been around for longer than LLM bots like ChatGPT.<br><br>
+		<h4>Math lesson over. Bring your homework assignments on Monday!</h4>
+		This very long tangent about calculus is over. I brought it up simply to point out that getting formula for velocity from a formula for position is not as straightforward as one would think. Unfortunately, when we want to formulate mathematically defined trails for particles by using velocity and not position, we must transform the formula for a curve with derivative functions.<br><br>
+		This begs the question: with all this trouble, why even bother with changing the velocity, when we can change the position of the particle directly without getting involved with calculus in the first place?<br><br>
+		Great question.<br><br>
+		Well, you can directly set positions of particles in update, nothing is stopping you. But keep in mind that, unless particles are attached to moveable, particle positions are absolute. When you do something like this in update:
+		<div class="code">
+			local t = getGameTick() * 0.1<br>
+			part.pos.x = sin(t) * 100
+		</div>
+		What does <span class="var">part.pos.x</span> become? Something in the range of <span class="var">&lt;-100, 100&gt;</span>, as <span class="var">sin(t)</span> returns a value in the range <span class="var">&lt;-1, 1&gt;</span> and we multiply it by 100. But <span class="var">X = -100</span class="var"> is outside of the editor’s map grid bounds and <span class="var">X = 100</span> just barely within them. We are placing our particles outside of the level map! We could find a value of X where we know it to be somewhere in our level map, but that be some weird number like <span class="var">78321</span>, hardly convenient and difficult to work with (remember getting the <a href="Chapter1.html#id6">absolute position</a> values for our dust effect? Eugh…)<br><br>
+		<i>Aha</i>, but we have the <span class="var">emitterIndex</span> which attaches particles to moveables, right? Unfortunately, I have not told you the full story of how <span class="var">emitterIndex</span> really works. There is a feature in the plugin I have not touched on yet, called the <strong>Tethering System</strong>. I will explain it properly at some point, but suffice to say, it controls how particles can be attached to an object and how long they stay attached. When you use the <span class="var">emitterIndex</span>, particles are indeed attached to the moveable, but by default, the moment the particles exit the init function, the relative coordinates get converted to absolute world coordinates and the particle loses its relation to the moveable. This behavior can be changed, of course, but that isn’t something I intended to cover yet, considering there will be a dedicated section to the Tethering System in a future chapter. For now, let’s assume this approach is a no-go.<br><br>
+		Also, consider that you may have particles spawned in with slightly random offsets in the init function. If we overwrite the position directly in update, we lose information of what this random offset was. But velocity will preserve this offset, as it adds itself on top of what was already stored in the position vector. This is what makes setting velocity preferrable to setting position in the overwhelming majority of cases, as the original starting point of the particle remains untouched. Look at these diagrams to see the difference between setting position and setting velocity in update:<br>
+		<div style="display: block; text-align: center">
+			<img src="ch2/parts_pos.png">&nbsp;<img src="ch2/parts_vel.png">
+		</div><br>
+		The arrows point to where the particles will end up in the next frame. You see that the offset is preserved in case of changing the velocity, but no longer the case if we overwrite the position.<br><br><br>
+		So, what do we do if we want particles to travel along a helical path? In the previous mini-chapter we set up an “animated” <a href="Chapter1_5.html#helix">helix of particles</a>, but while the helix itself was animated, the particles were really only moving in a straight line. Now we want to flip it around, the helix will be static, but the particles themselves will travel along the helix. It’s also possible to do so, but in this case we need to calculate velocities for two axes, like X and Y.<br><br>
+		If you followed through that section, you know that the <i>parametric equations</i> for a circle look like this:<br><br>
+		<span class="var">
+		x = cos(a) * r<br>
+		y = sin(a) * r
+		</span><br><br>
+		These equations take a radius <span class="var">r</span> and an angle <span class="var">a</span>. As the values of the angle <span class="var">a</span> sweep through the range 0 to 2 pi, the <span class="var">x</span> and <span class="var">y</span> coordinates will draw out a circle of the given radius <span class="var">r</span>.<br><br>
+		Since we want the circle to “sweep” over time, we swap out the variable <span class="var">a</span> with time <span class="var">t</span>:<br><br>
+		<span class="var">
+		x = cos(t) * r<br>
+		y = sin(t) * r
+		</span><br><br>
+		Of course, <span class="var">t</span> will most likely come from <span class="var">getGameTick()</span>, but most likely, we will not use the raw value, but rather scale it by a constant scale factor<br><br>
+		<span class="var">s</span>:
+		<span class="var">
+		x = cos(t*s) * r<br>
+		y = sin(t*s) * r
+		</span><br><br>
+		These formulae will give us the <u>position</u> on the circle. To get the velocity formulae, we need to
+		If we leave this as is, we indeed obtain just a regular circle. But we are dealing with 3D space, not 2D space, our velocity also has Z-axis component. Right now we are not assigning anythin to it, so we have:
+		These formulae will give us the velocity components <span class="var">vx</span>, <span class="var">vy</span> for the X and Y axis, respectively. However, this is only true when we don’t change scale (through multiplication or division) of the angle <span class="var">a</span>.<br>
+		If any changes are made to the scale of a, it needs to be reflected by the formula for velocity. This is where the trickiness of obtaining correct formulas for velocity becomes apparant, as this is another one of the rules you must apply when working out a derivative function. We obtain the following:<br><br>
+		<span class="var">
+		vx = m * -sin(m * a) * r<br>
+		vy = m * cos(m * a) * r
+		</span><br><br>
+		Where <span class="var">m</span> represents some multiplication constant. Again, this only applies to the above specific case, the transformations between the normal position function and derivative function need to be worked out case-by-case.<br>
+		<hr>
+	</body>
+</html>

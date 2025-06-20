@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Lua Crash Course</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <h1>Lua Crash Course</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="CoderIntro.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align:right"><a href="Chapter1.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+    <br>
+    You were made aware that particle scripting involves the use of the Lua language to write code for particle effects, but you may have never heard of what it is or what it does. If that’s the case, this is the chapter for you!<br><br>
+    Lua is a programming language used in many applications as an embedded scripting language, allowing end users to extend or modify an application’s functionality without having create a new version of the program (which would usually require recompiling the source code after making necessary changes). It found its place in many game engines with user scripting support. Among a long list of benefits, it’s a very simple first programming language and its syntax is very intuitive and fast to pick up, even for people without a computer science background. Nonetheless, it still has all features necessary for it to qualify as a true programming language, including variables, mathematical operations, flow control (conditions and loops), functions, arrays and structured data (tables).<br><br>
+    I will do my best to give a concise rundown of Lua’s most important features to give you a head start, in case you have never come into contact with it (or any other scripting language, for that matter). Please note that this is far from a proper “Lua programming” course, as I will be only focusing on the things that are relevant to scripting within the plugin. For a detailed, in-depth introduction to Lua, please seek online resources, of which there is an abundance to choose from. Especially noteworthy is the <i><strong>Programming in Lua</strong></i> manual available on the official Lua website: <a href="https://www.lua.org/pil/contents.html" target="_blank">https://www.lua.org/pil/contents.html</a><br>
+    The manual at the given link is for an older version of Lua (Lua 5.0, whereas the plugin uses Lua 5.4), but it still remains relevant, especially in regards to particle scripting. I will make note of any distinctions between generic Lua programming and the scripting specifically used for this plugin, since there are a few key differences.<br><br>
+    Finally, do not stress to memorize every bit of information presented here, as in the practical chapters I will often give a hyperlink to a relevant section on this page, alongside a contextual explanation of using a certain feature from the language. This chapter is more for you to see how Lua works and be able to go – <strong><i>“Oh yeah, this rings a bell!”</i></strong> – when a specific topic shows up later in practical code examples. You can always return here in case you need to refresh your memory about some topic, or go to the aforementioned official manual, if you would like a detailed explanation from the authors of Lua themselves.
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Code editor</a><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Variables and data types</a><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Operators</a><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Comments</a><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Functions</a><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id6">6. Conditions and loops</a><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id7">7. Tables and plugin data</a></strong>
+    <hr>
+    <a name="id1"><h3>Code editor</h3></a>
+    This topic is not as much related to the Lua language itself, as it is to what you will use for writing the Lua code for your scripts.<br><br>
+    Lua script files are text files with the <strong>.lua</strong> extension. These are ordinary text files, no different to files with the <strong>.txt</strong> extension created in Notepad, for example. There is nothing special about them apart from the file extension. As a matter of fact, you can even write your scripts in the trusty Windows Notepad and rename them by changing the default <strong>.txt</strong> file extension to <strong>.lua</strong>. While this totally works, Notepad is not really the best tool to write your scripts in.<br><br>
+    Instead, I can personally recommend a program called <strong>Notepad++</strong>. It can be downloaded from its official website: <a href="https://notepad-plus-plus.org/" target="_blank">https://notepad-plus-plus.org/</a><br>
+    It’s an open source program that is free to download and use for any purpose. It’s like regular Notepad in that it allows to write simple text files, but it also has a bunch of extra features that make it better adjusted for writing script files. For instance, it highlights Lua syntax for <strong>.lua</strong> files, making the script color-coded and thus easier to read. It also has a far more extensive toolset for text editing and manipulation than the regular Windows Notepad, which often comes in handy. On top of that, you can pick a custom colored theme to fit your aesthetic preferences!<br><br>
+    <img class="fig" src="lua/notepadplusplus.jpg"><br><br>
+    You can of course choose a different program for writing text files, there are countless options to pick from. But whatever you do, do <u>NOT</u> use applications like Microsoft Word or its alternatives such as OpenOffice Writer. These are not text editors, they’re <i>word processors</i>. The difference is that while text editors allow to write plain, unformatted text, word processors also include formatting data about the text (font size, font style, color and so on). Which is not good for the purposes of writing script files in a language like Lua, where formatting data is not understood correctly and thus useless and even detrimental to the script file.<br><br>
+    Simple is better, so use a plain-text editor that leaves the text formatting out of whatever you are writing.
+    <hr>
+    <a name="id2"><h3>Variables and data types</h3></a>
+    Variables are perhaps the most important concept in all of programming. They can be seen as named containers for various types of data, which can be anything from:
+    <ul>
+    <li>numbers (this includes whole numbers and decimal fractions)
+    <li>booleans (true / false)
+    <li>text (strings)
+    <li>more complex data comprised of other, simpler data (e.g. structures).
+    </ul>
+    Variables get their name from being variable, i.e. having the possibility to change their value at any point in time. Those familiar with more advanced TRNG scripting may know about variables in the form of <span class="var">Global Long Alfa</span>, <span class="var">Local Short Beta 2</span>, etc. These TRNG variables are similarly understood as containers for numbers up to a certain range. Other TRNG variables like <span class="var">Text1</span> or <span class="var">Big Text</span> allow to store some text (strings).<br>
+    The important distinction between variables in TRNG and Lua is that Lua can offer you a (nearly) limitless amount of variables and you can name them however you like (with some caveats, as will be explained in a bit). They can also store any data type supported by the Lua language (which goes far beyond just numbers and text).<br><br>
+    I will give an example of creating a variable in Lua:
+    <div class="code">
+      myfirstvar = 5
+    </div>
+    With the above line, we create a variable with the name <span class="var">myfirstvar</span> , and assign to it the integer (whole number) value <span class="var">5</span> via a singular equals sign <span class="var">=</span> in between, called the <i>assignment operator</i>. Afterwards, by using the <span class="var">myfirstvar</span> name somewhere in the script, we can get the <strong>value</strong> stored by this variable, which in this case, is the number <span class="var">5</span>. Because it’s a <i>variable</i>, nothing prevents you from changing the value stored by <span class="var">myfirstvar</span>, you simply need to use the assignment operator once more, with a different value (the old one gets discarded). And then again, with yet another value.<br><br>
+    <a name="names"><h4>Lua naming conventions</h4></a>
+    Note that we could have used any name instead of <span class="var">myfirstvar</span>, as long as:
+    <ul>
+      <li>it does not contain any spaces (e.g. <span class="var">my var</span>)
+      <li>it does not begin with any digit characters (e.g. <span class="var">123var</span>)
+      <li>it uses only alphanumeric characters (lower- and uppercase letters, digits), meaning no punctuation or symbol characters like <span class="var">! , . @ # $ % ^ ( ) + - =</span> etc. (with one exception, the underscore <span class="var">_</span> character is allowed)
+      <li>it is not any one of the following lower-case, <strong>reserved keywords</strong> (uppercase versions of these words can technically be used, however this is strongly discouraged prevent mix-ups when reading the code):
+    </ul>
+    <a name="keywords"><div class="code"></a>
+    <table style="width: 600px; height: 150px; table-layout: fixed; font-size: 110%;">
+      <tr class="var"><td>and</td><td>break</td><td>do</td><td>else</td><td>elseif</td><td>end</td></tr>
+      <tr class="var"><td>false</td><td>for</td><td>function</td><td>goto</td><td>if</td><td>in</td></tr>
+      <tr class="var"><td>local</td><td>nil</td><td>not</td><td>or</td><td>repeat</td><td>return</td></tr>
+      <tr class="var"><td>then</td><td>true</td><td>until</td><td>while</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    </table>
+    </div>
+    It’s worth emphasizing that names are case-sensitive, so:&nbsp;&nbsp;&nbsp;<span class="var">myvar,&nbsp;&nbsp;MyVar,&nbsp;&nbsp;myVar,&nbsp;&nbsp;myVAR</span>&nbsp;&nbsp;&nbsp;can each denote a different variable in Lua.<br><br>
+    <a name="locals"><h4>Local variables vs. global variables</h4></a>We will now create another variable, this time with a decimal number value:
+    <div class="code">
+      local pi314 = 3.14
+    </div>
+    In the above line is the creation of a variable&nbsp;&nbsp;<span class="var">pi314</span> , which holds a decimal (floating point) number <span class="var">3.14</span> . But there is also a word before the variable name, <span class=var>local</span> . What does it mean?<br><br>
+    This is a special keyword used to make the variable we’re creating a local variable, as opposed to a global variable (which is what we get when we don’t put local in front, as was the case with <span class="var">myfirstvar</span> earlier). When a variable is local, it means the memory reserved for it is temporary and its scope is limited to a specific block of code. I will explain what this means exactly in a subsequent chapter, but in a nutshell, a local variable will exist only within a specific “section” or block of code (where you are allowed to access or change its value) and will cease to exist outside of that “section”. A global variable, after creation, exists more or less permanently, i.e. as long as the program is still running, and can be accessed anywhere after being created. This distinction between local and global can be understood by an analogy to TRNG variables, with local TRNG variables clearing after each level jump (in our analogy: code section) and global variables keeping their values even after a level jump (code section). Except that with Lua, it’s more extreme. The local variables themselves vanish when outside of their section, it’s not only their values that get cleared!<br><br>
+    It may seem like global variables are therefore superior to local ones, since they are always available and you don’t need to worry about these “code sections”. However, global variables in Lua come with a big drawback – while local variables can be accessed very quickly in computer memory, global ones are comparitively very slow to access. This means that relying on global variables makes everything much slower, significantly reducing perfomance. This difference is so staggering in fact, that we (the developers of this plugin) decided to completely forbid the use of all global variables in the scripts. As drastic as this sounds, the justification is they offer no real benefit for the purposes of particle scripting, leading only to slowdowns and poor performance. Therefore, this is a very important rule you should apply to particle scripting – if you want to create variables, <strong><u>they can only be local variables</u></strong>, and thus, must have the <span class="var">local</span> keyword when being created (otherwise, you will get an inevitable script error about a global variable being used). However, as we will learn over the course of these tutorials, this absence of global variables should not even be a problem to begin with, we can live without them.<br><br>
+    <a name="types"><h4>Data types in Lua</h4></a>
+    As mentioned, Lua supports various kinds of data types, not limited to just numbers or text. Here is a list of the data types relevant to particle scripting:
+    <ul>
+      <li><strong>numbers</strong> – includes whole numbers (integers) like <span class="var">0</span>, <span class="var">121</span> or <span class="var">-6</span> and numbers with decimals (known as floating point numbers or floats) such as <span class="var">-0.5</span> or <span class="var">2.71828</span>
+      <li><strong>booleans</strong> – one of two values: <span class="var">true</span> or <span class="var">false</span>, used to represent logical relations or two-valued states (e.g. <span class="var">true</span> – on, <span class="var">false</span> – off)
+      <li><strong>strings</strong> – sequences of text characters; strings need to be encased in single or double quotes to differentiate them from Lua code, i.e.&nbsp;&nbsp;&nbsp;<span class="var">'This is a string'</span>&nbsp;&nbsp;&nbsp;or&nbsp;&nbsp;&nbsp;<span class="var">"This is a string"</span>
+      <li><strong>functions</strong> – executable, reusable fragments of code that can be written by the user to streamline a repetitive task or calculation
+      <li><strong>tables</strong> – containers capable of holding onto multiple other data (including other tables)
+      <li><strong>plugin data</strong> – a bit similar to tables, except their structure and contents is predefined by the particle system plugin
+      <li><strong>nil</strong> – a unique type represented by the single value <span class="var">nil</span> that is different from all other values; usually it is used to signal the absence of something or an erroneous result.
+    </ul>
+    Variables in Lua can store any of these data types and can even be overwritten to store some other data type later, for example, initially storing a number, then a function, then a string and then a boolean. Be wary of this, it’s quite easy to shoot yourself in the foot and accidentally overwrite something important you’ve stored in your variables (remember, overwritten values are discarded)!<br>
+    <hr>
+    <a name="id3"><h3>Operators</h3></a>
+    Operators are specialized, built-in symbols recognized by the Lua language, which allow to perform some operations with values (including the values contained by variables). We have already learned of one such operator, the assignment operator = used for assigning a value to a variable:<br>
+    <div class="code">
+      local var = 15
+    </div>
+    As it turns out, Lua has many more operators. Among them are the following:<br><br>
+    <a name="arith"><table cellpadding = "15" cellspacing = "15" class="tab"></a>
+      <caption>Arithmetic operators – give numeric results</caption>
+      <tr>
+        <th><strong>Name</strong></th>
+        <th><strong>Symbol</strong></th>
+        <th><strong>Example</strong></th>
+        <th><strong>Result</strong></th>
+      </tr>
+      <tr>
+        <td>addition</td>
+        <td class="var">+</td>
+        <td class="var">5 + 3</td>
+        <td class="var">8</td>
+      </tr>
+      <tr>
+        <td>subtraction</td>
+        <td class="var">-</td>
+        <td class="var">5 - 3</td>
+        <td class="var">2</td>
+      </tr>
+      <tr>
+        <td>negation</td>
+        <td class="var">-</td>
+        <td class="var">- 4</td>
+        <td class="var">-4</td>
+      </tr>
+      <tr>
+        <td>multiplication</td>
+        <td class="var">*</td>
+        <td class="var">3 * 2</td>
+        <td class="var">6</td>
+      </tr>
+      <tr>
+        <td>division</td>
+        <td class="var">/</td>
+        <td class="var">3 / 2</td>
+        <td class="var">1.5</td>
+      </tr>
+      <tr>
+        <td>integer (floor) division</td>
+        <td class="var">//</td>
+        <td class="var">9 // 4</td>
+        <td class="var">2</td>
+      </tr>
+      <tr>
+        <td>integer division<br>remainder (modulo)</td>
+        <td class="var">%</td>
+        <td class="var">9 % 4</td>
+        <td class="var">1</td>
+      </tr>
+      <tr>
+        <td>exponentiation</td>
+        <td class="var">^</td>
+        <td class="var">3 ^ 2</td>
+        <td class="var">9</td>
+      </tr>
+    </table>
+    <br><br>
+    <table cellpadding = "15" cellspacing = "15" class="tab">
+    <a name="rel"><caption>Relational operators – give a boolean result</caption></a>
+    <tr>
+      <th><strong>Name</strong></th>
+      <th><strong>Symbol</strong></th>
+      <th><strong>Example</strong></th>
+      <th><strong>Result</strong></th>
+    </tr>
+    <tr>
+      <td>equal to</td>
+      <td class="var">==</td>
+      <td class="var">(2 + 2) == 5</td>
+      <td class="var">false</td>
+    </tr>
+    <tr>
+      <td>not equal to</td>
+      <td class="var">~=</td>
+      <td class="var">1 ~= 2</td>
+      <td class="var">true</td>
+    </tr>
+    <tr>
+      <td>greater than</td>
+      <td class="var">&gt;</td>
+      <td class="var">7 &gt; 8</td>
+      <td class="var">false</td>
+    </tr>
+    <tr>
+      <td>greater or equal</td>
+      <td class="var">&gt;=</td>
+      <td class="var">4 &gt;= (2 + 2)</td>
+      <td class="var">true</td>
+    </tr>
+    <tr>
+      <td>less than</td>
+      <td class="var">&lt;</td>
+      <td class="var">8 &lt; 10</td>
+      <td class="var">true</td>
+    </tr>
+    <tr>
+      <td>less or equal</td>
+      <td class="var">&lt;=</td>
+      <td class="var">8 &lt;= 6</td>
+      <td class="var">false</td>
+    </tr>
+    </table>
+    <br><br>
+    <table cellpadding = "15" cellspacing = "15" class="tab">
+    <a name="logic"><caption>Logical operators – manipulate boolean values and give a new boolean result</caption></a>
+    <tr>
+      <th><strong>Name</strong></th>
+      <th><strong>Symbol</strong></th>
+      <th><strong>Example</strong></th>
+      <th><strong>Result</strong></th>
+    </tr>
+    <tr>
+      <td>logical and</td>
+      <td class="var">and</td>
+      <td class="var">6 == (3 * 2) and 5 &lt; 4</td>
+      <td><span class="var">false</span>&nbsp;&nbsp;&nbsp;(both expressions must be true for logical and to be true)</td>
+    </tr>
+    <tr>
+      <td>logical or</td>
+      <td class="var">or</td>
+      <td class="var">6 == (3 * 2) or 5 &lt; 4</td>
+      <td><span class="var">true</span>&nbsp;&nbsp;&nbsp;(at least one expression must be true for logical or to be true)</td>
+    </tr>
+    <tr>
+      <td>logical not</td>
+      <td class="var">not</td>
+      <td class="var">not (5 &lt; 4)</td>
+      <td><span class="var">true</span>&nbsp;&nbsp;&nbsp;(the expression was false and was then negated to true)</td>
+    </tr>
+    </table>
+    <br><br><br>
+    Operators are used to combine existing variables and values into <i>expressions</i>, which result in some other form of value. The <strong>PEMDAS</strong> (Parentheses, Exponents, Multiplication, Division, Addition, Subtraction) rule of precedence applies when processing mathematical expressions like:
+    <div class="code">
+      a^2 + b * c - d
+    </div>
+    meaning that <span class="var">a^2</span> is calculated first, then  <span class="var">b * c</span>, then <span class="var">a²</span> gets added to the previous result, and finally <span class="var">d</span> is subtracted as last. If necessary or when in doubt, use parentheses to explicitly state the order of math operations, e.g.
+    <div class="code">((a^2) + b) * (c - d)</div><br>
+    It is important to not mix up the single equals&nbsp;&nbsp;<span class="var">=</span>&nbsp;&nbsp;assignment operator (for assigning values to variables) with the double equals&nbsp;&nbsp;<span class="var">==</span>&nbsp;&nbsp;relational operator (which compares two values to see if they are equal). Using an assignment operator in place of an ‘equal to’ operator is a common rookie mistake. Don’t worry if you make this mistake, though, even pros get them confused sometimes. It’s easy to make this error when not paying attention to what you are typing (I’m speaking from personal experience).<br><br>
+    There are also specialized use operators, such as the dot operator <span class="var">.</span> for accessing components of structured variables (more on this later, in the section about <strong>Tables and plugin data</strong>) and the length operator <span class="var">#</span> for obtaining the length of certain kinds of data (mainly strings and tables). There is also the concatenation operator <span class="var">..</span> (two dots) which allows to combine two strings into one.<br>
+    <hr>
+    <a name="id4"><h3>Comments</h3></a>
+    Comments are an entirely optional, but very helpful feature in any programming language. They allow to mark a portion of text to be ignored, being there only for the user to serve as an explanation or description of what some code does. Aside from that, comments can also be used to ignore a piece of code, for example, to disable it temporarily for testing purposes without removing it from the script entirely. In Lua, comments take two forms: the <strong>single-line comment</strong> and the <strong>multi-line comment</strong>.<br><br>
+    Single-line comments start from doubled hyphen (minus) characters and mark whatever comes after them to be ignored for the rest of the line:<br>
+    <div class="code">
+      local a = 3 <span class="com">-- this is a comment<br>
+      -- the below line of code does not get executed<br>
+      -- a = 5<br></span>
+      a = a + 1 <span class="com">-- a will be 4 after this executes, not 6</span>
+    </div>
+    If you are familiar with TRNG script syntax, this double minus type of comment is the Lua equivalent of semicolon comments <span class="var">;</span> in TRNG and can be used in much the same way.<br><br>
+    The other type of comment, multi-line comments, allow to ignore a section of code that spans across several lines. Multi-line comments begin with a double minus and double square opening brackets, like so:
+    <div class="code">
+      <span class="com">
+        --[[<br>
+        local b = 4<br>
+        b = b * 15<br>
+        local c = 100 – b
+      </span>
+    </div>
+    and end with a double minus and pair of closing square brackets:
+    <div class="code">
+      <span class="com">
+        --[[<br>
+        local b = 4<br>
+        b = b * 15<br>
+        local c = 100 – b<br>
+        --]]
+      </span>
+    </div>
+    This way the entire, multi-line block of code is commented out and not executed. If we add a third minus to the start of the multiline comment, then the code inside the brackets becomes uncommented, allowing us to easily toggle if this code is commented or not:<br><br>
+    <div class="code">
+      ---[[<br>
+      local b = 4<br>
+      b = b * 15<br>
+      local c = 100 – b<br>
+      --]]
+    </div>
+    This is especially useful for the aformentioned disabling of code when trying to test or debug something, as it provides an easy on/off toggle (add or remove the third hyphen/minus character).<br>
+    <hr>
+    <a name="id5"><h3>Functions</h3>
+    In the <a href="DevIntro.html#id3">Particle Group section</a> of the <strong>Introduction</strong> chapter, I have said that in order to define behavior for our particle effects, we must supply functions to their group. As we will be using functions very often, it is crucial to cover them now.<br><br>
+    I will first make a short parallel to functions as they are known in mathematics. During your education at school, you may remember dealing with functions of the form:<br><br>
+    <div class="var", style="font-size:115%">
+      &nbsp;&nbsp;&nbsp;&nbsp;f(x) = x – 2
+    </div><br>
+    This notation means that we are defining a function <span class="var">f</span>, which takes a single argument <span class="var">x</span> (usually a number), and pairing it with the mathematical expression <span class="var">x – 2</span>. Having defined the function, we can evaluate the result for concrete values of x, for example <span class="var">x = 5</span>:<br><br>
+    <div class="var", style="font-size:115%">
+      &nbsp;&nbsp;&nbsp;&nbsp;f(5) = 5 – 2 = 3
+    </div><br>
+    Pretty simple, right? You can also have functions that take more than one argument, for example:<br><br>
+    <div class="var", style="font-size:115%">
+      &nbsp;&nbsp;&nbsp;&nbsp;g(x, y) = x + y²
+    </div><br>
+    This defines a function <span class="var">g</span>, which takes a pair of arguments <span class="var">(x, y)</span>, and associates the expression <span class="var">x + y²</span>.<br><br><br>
+    In Lua, the concept behind functions is more or less the same, except functions in Lua can take any number of arguments (including no arguments at all) and these arguments do not have to be only numbers, but in fact any value that Lua recognizes (including booleans, strings, tables or even other functions). The “expressions” themselves also don’t need to be mathematical in nature, but can be viewed more generally as any kind of procedures performed with the use of the arguments given to the function (or without them, in the case of functions without arguments). Aside from that, functions in Lua do not necessarily have to return any values (which distinguishes them from functions in the purely mathematical sense), but simply be a repeatable sequence of instructions.<br><br>
+    <a name="luafuncs"><h4>Defining a function in Lua</h4></a>
+    We start off with the general syntax for a function in Lua:
+    <div class="code">
+      local function myFunc(argument1, argument2, ..., argumentLast)<br>
+  	  &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- function body here</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;return 25 <span class="com">-- optional return values</span><br>
+      end
+    </div>
+    There’s a lot going on there, so let’s break down every part of the above syntax:
+    <ul>
+      <li>The <span class="var">local</span> keyword – I will get to this in a bit
+      <li>The <span class="var">function</span> keyword serves to tell Lua we would like to define a function.
+      <li>We would like to use the name <span class="var">myFunc</span> for this function.
+      <li>We open parentheses after the name <span class="var">(</span>
+      <li>Inside the parentheses we list all the arguments <span class="var">argument1, argument2, ...</span> that will go into the function, in order. If the function you are writing has no arguments, you leave this empty.
+      <li>After listing all the arguments, we close the parentheses <span class="var">)</span>
+      <li>Below the name and argument list is the <I>body</I> of the function, where we write the code performed by the function <span class="var">myFunc</span>, manipulating the data of the passed arguments, doing various calculations, calling other functions and so on.
+      <li>Functions can optionally return any number of values (including none) in the body. Returned values are the end result of a function. Functions can have no such result, a single result or multiple, depending on the needs. Lua allows to return any of the available <a href="#types">data types</a>. Returning is indicated with the <span class="var">return</span> keyword, optionally followed by the value, variable holding the value or some expression to be evaluated as a value, separated by commas if more than one is returned.
+      <li>When a return instruction is encountered in the middle of the function body, Lua exits the function at that spot (returning values, if present) and no remaining code from the function gets executed.
+      <li>Finally, very importantly, we terminate the body of the function with the <span class="var">end</span> keyword, signifying that this is where our function’s code ends. In case no values are returned, placing <span class="var">return</span> before the <span class="var">end</span> is not required, it is implicit in the syntax.
+    </ul>
+    <br>
+    Armed with this knowledge, we can rewrite the previous examples for the mathematical functions <span class="var">f(x)</span> and <span class="var">g(x, y)</span> in Lua like so:<br><br>
+    <div class="code">
+      local function f(x)<br>
+    	&nbsp;&nbsp;&nbsp;&nbsp;return (x - 2)<br>
+      end<br><br>
+      local function g(x, y)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;return (x + y^2)<br>
+      end
+    </div>
+    Function <span class="var">f(x)</span> takes one argument, <span class="var">x</span>, and returns whatever the result of <span class="var">(x - 2)</span> is. Function <span class="var">g(x, y)</span> takes two arguments, <span class="var">x</span> and <span class="var">y</span>, and returns whatever the result of <span class="var">(x + y²)</span> is. In either case, a single number is returned as a result.<br><br>
+    <a name="funccall"><h4>Calling a function</h4></a>
+    Once we have a function defined, it would be great if we could use it on specific arguments, to let the function carry out its task and/or obtain a returned result from the function.<br><br>
+    The act of using a function is known as <strong><i>calling</i></strong> the function. If the function takes some arguments, we <strong><i>call</i></strong> the function by <strong><i>passing</i></strong> the arguments to it.<br><br>
+    Let’s see this calling in action, with the above examples of functions <span class="var">f(x)</span> and <span class="var">g(x, y)</span>. Both these function return values. The anticipated <strong><i>return values</i></strong> of these functions are numbers, so we catch the returned result by assigning it to a local variable, for example <span class="var">result</span>:
+    <div class="code">
+      <span class="com">-- we call the function f(x) with the argument x = 5</span><br>
+      local result = f(5) <span class="com">-- f(5) returns 3 and this gets assigned to result</span></div>
+    To call a function, we do not have to pass explict values for arguments, like <span class="var">5</span>. We can also do a call by passing a variable or expression that gives the value we want to pass as an argument:<br><br>
+    <div class="code">
+      local val = 2<br>
+      local result = g(val + 1, val) <span class="com">-- result will be 7</span>
+    </div>
+    When calling a function with no expected arguments, you leave the parentheses empty, like so:
+    <div class="code">
+      local result = functionWithNoArgs() <span class="com">-- calling a function with no arguments</span>
+    </div>
+    Whereas if no return values are expected from a function, you do not need any variable to catch the result. You can make a call to the function as-is (while also passing any expecting arguments to the function):
+    <div class="code">
+      functionWithNoResult(argument) <span class="com">-- calling a function with no return values</span>
+    </div><br>
+    <a name="funcvars"><h4>Function names are variables in disguise</h4></a>
+    You may have noticed the <span class="var">local</span> keyword showing up again (the same one we are using for variables) in the definitions for functions <span class="var">f</span> and <span class="var">g</span>.<br><br>
+    Lua allows functions to also be defined as local. In fact, this is the <u>only</u> way we can define functions when writing scripts for this plugin (this is not true for Lua in general). The need for the <span class="var">local</span> keyword is a consequence of having only local variables allowed. Named functions in Lua are, in fact, disguised variables that hold a nameless function as their value, i.e.<br><br>
+    <div class="code">
+      local function MyFunction()<br>
+    	&nbsp;&nbsp;&nbsp;&nbsp; <span class="com">-- body</span><br>
+      end
+    </div>
+    is in reality just a simplified version of:<br><br>
+    <div class="code">
+      local MyFunction<br>
+      MyFunction = function()<br>
+	     &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- body</span><br>
+      end
+    </div>
+    <span class="var">MyFunction</span> is nothing more than the name we have chosen for a variable that holds the anonymous function we have defined in the body (the function itself is nameless, but it is stored/referenced by the local variable <span class="var">MyFunction</span>, just as <span class="var">5</span> is simply the number <span class="var">5</span>, not intrinsic to any variable, but it may be stored by a variable named <span class="var">MyNumber</span>). And since all variables need to be local, the same goes for the variable <span class="var">MyFunction</span> holding the function. Such “local” functions are faster to call than global ones (since local variables themselves are faster to access), so this quirk comes with its benefits.<br><br><br>
+    In Lua scripts, you are free to create as many local functions as you want, which you can use to reduce the amount of code you have to write for repetitive tasks or extensive calculations. In fact, this is one of the main purposes for which functions exist in programming languages like Lua. Some functions are even vital to make any use of the particles, namely the init and update functions for particle groups. Furthermore, the <strong>Particle Scripting <abbr title="Application Programming Interface">API</abbr></strong> comes packed with a plethora of pre-made functions for various tasks and calculations that you may use freely in your scripts.<br>
+    <hr>
+    <a name="id6"><h3>Conditions and loops</h3></a>
+    Conditions and loops are a form of flow control in programming languages. What this means is making decisions based on the current state (the value of some variable or a combination of variables, for example) whether to execute a part of code, which part of code to execute and / or how many times to execute the part of code. This allows code to behave in a dynamic way, reacting to the current situation and deciding what course of action to take based on certain factors.<br><br>
+    <a name="if"><h4>If conditions</h4></a>
+    I will now introduce the if conditional statement. It begins with the keyword <span class="var">if</span>, followed by an expression that evaluates to the boolean <span class="var">true</span> or <span class="var">false</span>, followed by the keyword <span class="var">then</span>, like so:<br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then <span class="com">-- if var is greater than 3</span>
+    </div>
+    After the <span class="var">then</span> keyword, we can write what we want to happen if the expression results in true:<br><br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then <span class="com">-- if var is greater than 3</span><br>
+    	&nbsp;&nbsp;&nbsp;&nbsp;var = var - 1 <span class="com">-- what happens when the statement was true</span>
+    </div>
+    And finally, we must signal to Lua where this inner section of code ends, with the <span class="var">end</span> keyword:<br><br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then <span class="com">-- if var is greater than 3</span><br>
+    	&nbsp;&nbsp;&nbsp;&nbsp;var = var - 1  <span class="com">-- what happens when the statement was true</span><br>
+      end <span class="com">-- end the if block here</span>
+    </div>
+    Whatever is between the <span class="var">then</span> and <span class="var">end</span> keywords is part of a new block of code delegated to the if condition, meaning this code will only be performed if the expression between <span class="var">if</span> and <span class="var">then</span> evaluated to <span class="var">true</span> (and under no other circumstances).<br><br>
+	  Note that these indentations are not strictly necessary. We could have the if statement, the inner code and the end keyword all in one line, like so:<br><br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then var = var – 1 end
+    </div>
+    and to Lua this is indistinguishable from the indented version (and the same is true for function indentations, by the way). Though at least for me, it is much harder to read, so I almost always prefer to structure it with indentations and on separate lines, like in the first example.<br><br><br>
+    We can also have conditions where we execute a different piece of code if the condition result was <span class="var">false</span>. This is achieved by placing the <span class="var">else</span> keyword instead of the <span class="var">end</span> after the body of the if statement (note that <span class="var">then</span> does not occur after <span class="var">else</span>!):<br><br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then <span class="com">-- if var is greater than 3</span><br>
+    	&nbsp;&nbsp;&nbsp;&nbsp;var = var - 1 <span class="com">-- what happens when the statement was true</span><br>
+      else
+    </div>
+    and writing the code we want to execute when the if condition statement resulted in <span class="var">false</span>, then terminating it with <span class="var">end</span>:<br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then <span class="com">-- if var is greater than 3</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;var = var - 1 <span class="com">-- what happens when the statement was true</span><br>
+      else<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;var = 0 <span class="com">-- what happens when the statement was false</span><br>
+      end
+    </div>
+    If you guessed that this piece of code will result in the variable <span class="var">var</span> receiving the value of <span class="var">4</span>, you’re absolutely right, congrats on figuring it out! Since the initial value of <span class="var">var</span> is set to 5, the result of the expression (<span class="var">var &gt; 3</span>) is <span class="var">true</span>. Therefore <span class="var">var = var – 1</span> will execute, so <span class="var">var</span> will be assigned the value it already holds, minus one. If, on the other hand, the value of <span class="var">var</span> would be e.g. <span class="var">2</span>, then the code section under <span class="var">else</span> would execute, <span class="var">var = 0</span>.<br><br>
+    You can further expand these branched if-else statements and evaluate other conditions with the <span class="var">elseif</span> keyword between the first <span class="var">if</span> and the final <span class="var">else</span>, as many times as needed.<br><br>
+    <div class="code">
+      local var = 5<br>
+      if var &gt; 3 then <span class="com">-- if var is greater than 3</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;var = var - 1 <span class="com">-- what happens when the statement was true</span><br>
+      elseif var &lt;= 0 then<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;var = 6<br>
+      else<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;var = 0 <span class="com">-- what happens when all the earlier statements were false</span><br>
+      end
+    </div>
+    <h4>When is it false, when is it true?</h4>
+	  A small remark about what kinds of expressions evaluate to <span class="var">true</span>, and which ones give a <span class="var">false</span> in if statements:<br><br>
+    In Lua, the result is <span class="var">false</span> only if the whole expression results in one of the values: <span class="var">false</span> or <span class="var">nil</span>.<br><br>
+    In all other circumstances, the result will be <span class="var">true</span>: if the expression result is <span class="var">true</span>, or it’s any number (even <span class="var">0</span>), any string (even <span class="var">""</span>), any function or any table (even if the table is empty). This can come as a surprise to programmers experienced with different languages, as the numeric value <span class="var">0</span>, empty string <span class="var">""</span> or empty table <span class="var">{}</span> may evaluate to the boolean <span class="var">false</span> in some other programming languages. Such cases in Lua require explicitly checking the values, otherwise the implicit result is <span class="var">true</span>.<br><br>
+    <a name="loops"><h4>For loops</h4></a>
+    Now we will cover loops. Loops are another essential component of programming, they allow to execute a piece of code with repetition, a specific number of times or until a specific condition is met (or not met).<br><br>
+    The first of those, repeating a piece of code a specified number of times, is achieved through the so-called <strong>for loop</strong>. In Lua, the general syntax of this for loop is as follows:
+    <div class="code">
+      for var = start, stop do<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- inner code of for loop</span><br>
+      end
+    </div>
+    Allow me to walk you through what this means.<br><br>
+    We begin with the <span class="var">for</span> keyword, followed by a variable called an <I>iteration variable</I> (here named <span class="var">var</span>), specifying a <span class="var">start</span> value for the iteration variable, a <span class="var">stop</span> value after a comma and finally placing the <span class="var">do</span> keyword on the end of the line. Then, on a new block of code, we write the body of the loop (the code which will be executed on each iteration of the loop) and terminate it with the familiar <span class="var">end</span> keyword.<br><br>
+    Now on how this works: the loop first gives our iteration variable <span class="var">var</span> the <span class="var">start</span> value, then it compares <span class="var">var</span> to the <span class="var">stop</span> value. If it’s less or equal to <span class="var">stop</span>, the first iteration of the loop body performs. After the inner code is executed once, the iteration variable <span class="var">var</span> increases in value by 1. Then the comparison between <span class="var">var</span> and <span class="var">stop</span> is done again. If <span class="var">var</span> remains smaller or equal, another iteration of the loop performs, executing the inner code. Then <span class="var">var</span>  gets increased by 1 again. This process will repeat as long as (<span class="var">var &le; stop</span>) remains true. Once <span class="var">var</span> surpasses the <span class="var">stop</span> value, no further iterations of the loop are repeated (the loop is terminated) and the script carries on with whatever instructions come after (below) the loop.<br><br>
+    I want to emphasize a potential source of error and frustration – the iterations of the loop are not stopped until <span class="var">var</span> reaches the <span class="var">stop</span> of the loop, or when the <span class="var">break</span> keyword is encountered within the loop (which prematurely ends further iterations of loops, check the Lua manual for more info on it). Only after the loop has terminated (by reaching the <span class="var">stop</span> or a <span class="var">break</span>), the code placed after the loop can be resumed (this includes the plugin eventually handing back control to TRNG or tomb4.exe). If the amount of loop iterations is very large, say, in the millions, this can lead to massive slowdowns or even freezing and crashing of the game, as it mindlessly proceeds with execution until the loop is terminated one way or another, potentially exhausting your computer’s resources. This is a warning to be extra careful with what you are using as the <span class="var">start</span> and <span class="var">stop</span> values of a for loop and double-check if they are correct. Neither the plugin or the tomb4/TRNG engine can assist in getting you out of a lockup due to excessive iterations, respecting that you’re the boss and you know what you are doing. It’s entirely your responsibility to prevent such situations when dealing with loops, so be mindful of the start and (especially) stop points of a loop.<br><br>
+    For loops are also not the correct method to perform iterations over some period of in-game time (for example: performing some action once a frame for several frames). This can be accomplished in a different way, there will be an example illustrating this in later chapters.<br><br>
+    Let’s see an example scenario where the for loop could be utilized. Say you want to have a particle that explodes into a bunch of other particles, e.g. 15 of them. We could write the instruction (perhaps a function called <span class="var">SpawnTheParticle()</span>) to spawn the particle 15 times in the code:<br><br>
+    <div class="code">
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()<br>
+      SpawnTheParticle()
+    </div>
+    I hope you agree that this seems very inefficient and ugly. What if we have 50, 100 or 200 particles to spawn instead? It will become extremely tedious writing it out that many times over and over again. Who are we, Bart Simpson in detention?<br><br>
+    <img class="fig" src="lua/BartSimpsonChalkboard.png"><br><br>
+    This is the perfect opportunity for using the <i>for loop</i>, all we do is place that spawn instruction inside the loop body and give the appropriate <span class="var">start</span> and <span class="var">stop</span> values to the loop (both of which can be a standalone integer value, an integer stored in a variable or an expression with an integer result):<br><br>
+    <div class="code">
+      local count = 15<br>
+      for i = 1, count do <span class="com">-- spawn particle however many times indicated by count</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;SpawnTheParticle()<br>
+      end
+    </div>
+    Using&nbsp;&nbsp;<span class="var">i, j, k</span>&nbsp;&nbsp;as the names of loop iteration variables is common practice across programming languages, but you may of course use any name.<br><br>
+    Let’s go even further with our hypothetical example, say we would want to spawn a randomized amount of particles between 20 and 40. This time we can’t get away with just typing it out several times, we are forced to use a loop here. We can store this random amount in the variable <span class="var">count</span> and use its value as the <span class="var">stop</span> value.
+    <div class="code">
+      local count = RandomBetween(20, 40) <span class="com">-- value of count is random each time</span><br>
+      for i = 1, count do <span class="com">-- spawn particle however many times indicated by count</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;SpawnTheParticle()<br>
+      end
+    </div>
+    Simple and elegant.<br><br>
+    What I’ve shown in the above examples is only variant of the for loop, called the <I>numeric</I> for loop. Lua also has another variant called the <I>generic</I> for loop. We will also be using it, but I will introduce it and explain how it’s different in one of the practical chapters of the tutorial. There are several situations where we will use for loops in more advanced particle scripts, such as making a particle deal splash damage to nearby enemies in the blast radius as it explodes (I won’t spoiler it any further).<br><br>
+    The remaining types of loops in Lua are the <I>while loop</I> and the <I>repeat-until loop</I>. Because both of these are far less likely to be useful in particle scripting scenarios (and are even more prone to game-breaking lockups if not written with care), I will not cover them here. In case you are interested in these other loops, you may check the official Lua manual.<br>
+    <hr>
+    <a name="id7"><h3>Tables and plugin data</h3></a>
+    <h4>Tables</h4>
+    In Lua we can have simple variables that hold just one, single value, like a number or string.
+    <div class="code">
+      local mynum = 42<br>
+      local mytext = "cherry"
+    </div>
+    Lua also allows variables that seem to hold multiple values within them:
+    <div class="code">
+      local myarray = {20, 30, 40} <span class="com">-- array-like table</span><br>
+      local myrecords = {key1 = "apple", bkey = true, lastkey = 35} <span class="com">-- record table</span>
+    </div>
+    Such data composed of other data are known as <i>tables</i> in Lua. We call the individual data inside the table the <i>elements</i> or the <i>fields</i> of the table.<br><br>
+    <h4>Array-like tables</h4>
+    Tables can act like arrays, as exemplified with <span class="var">myarray</span> above. To create an array-like table, after the assigment operator, we list the <i>elements</i> we want the table to contain, encasing them in curly brackets <span class="var">{}</span> and seperating them with a comma <span class="var">,</span>&nbsp;&nbsp; e.g:
+    <div class="code">
+      local myarray = {20, 30, 40} <span class="com">-- array-like table</span>
+    </div>
+    The above array-table consists of 3 elements, each with a different number value. The values of elements can be of the same data type or of different types. Lua allows to assign any value for each element, but the value <span class="var">nil</span> is a special case and you should not normally assign it to table elements.<br><br>
+    To access the elements in these array-like tables, we write square brackets <span class="var">[]</span> after the name of the table variable, and inside of these brackets, the integer index at which the element resides (you can imagine the index as the house number on the street called <span class="var">myarray</span>, pointing us to where a certain value “lives”):
+    <div class="code">
+      myarray[1] <span class="com">-- element 1 holds 20</span><br>
+      myarray[2] <span class="com">-- element 2 holds 30</span><br>
+      myarray[3] <span class="com">-- element 3 holds 40</span><br>
+    </div>
+    A note for programmers coming from other languages – in Lua, indices for array tables start from 1 and <strong>NOT</strong> from 0, like in the majority of other programming langauges (which is admittedly a peculiarity of Lua that takes getting used to).<br><br>
+    We can overwrite values of existing table elements (“kicking out” the old inhabitant of the house and replacing him with someone new):
+    <div class="code">
+      myarray[2] = "banana" <span class="com">-- overwrite element 2 with a new value</span><br>
+      myarray[2] <span class="com"><span class="com">-- now holds the string "banana" instead of 30</span>
+    </div>
+    or add new elements to the table (building a new house down the road, for a new inhabitant):
+    <div class="code">
+      myarray[4] = false <span class="com">-- myarray now has 4 elements, the new one at index 4 being set to false</span>
+    </div>
+    This process of writing an integer in square brackets is called <I>indexing</I> a table. If you index a table with an integer for which there is no element yet, Lua will give the <span class="var">nil</span> value.
+    <div class="code">
+      myarray[5] <span class="com">-- nil, since we have not added a 5th element to myarray yet</span><br>
+      myarray[5] = 16.75<br>
+      myarray[5] <span class="com">-- now the element exists with the value 16.75</span>
+    </div>
+    It’s possible to get the number of elements in the table by using the length operator <span class="var">#</span> in front of the variable holding the table:
+    <div class="code">
+      local num_elems = #myarray <span class="com">-- assign the count of myarray elements to num_elems variable</span>
+    </div>
+    This becomes useful when you want to loop over all the elements of a table in the for loop, but the size of the table is not known in advance (because it can vary).
+    <div class="code">
+      local num_elems = #myarray <span class="com">-- assign the count of myarray elements to num_elems variable</span><br><br>
+      for i = 1, num_elems do<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;myarray[i] = myarray[i] + i^2 <span class="com">-- e.g. do something to each element of myarray</span><br>
+      end
+    </div>
+    When using the length operator, the first encountered element with the <span class="var">nil</span> value is treated as the end of the table (hence why you should refrain from assigning <span class="var">nil</span> to table elements or leaving gaps with no assigned values in the table).<br><br>
+    <h4>Record tables</h4></a>
+    We also have another form of tables in Lua, called <I>record tables</I>. This type of table is demonstrated by <span class="var">myrecords</span>. Inside the curly brackets, we write what appear to be “variables”, each assigned a value, separated by commas:
+    <div class="code">
+      local myrecords = {key1 = "apple", bkey = true, lastkey = 35} <span class="com">-- record table</span>
+    </div>
+    These are not actual variables (though to some extent they do behave as such), but rather key-and-value pairs stored in the table.
+    In the case of these record tables, we don’t have integer indices anymore, but instead we have a <strong><i>key</i></strong> (in most cases, a string) and a <strong><i>value</i></strong> paired with that key, which can be any Lua value (<span class="var">nil</span> is a unique case, as in some contexts it indicates a given key does not exist in the table).<br>
+    In this arrangement, we can also refer to the key-value pairs as <i>fields</i> in the table. We have two ways of accessing the fields inside record tables.<br><br>
+    One way is by using square brackets, inside we put the key string in quotes (single or double), for example:
+    <div class="code">
+      myrecords["lastkey"] <span class="com">-- key "lastkey" holds value 35</span>
+    </div>
+    <a name="dot"><h4>Dot operator</h4></a>
+    The other way is by using the <i>dot operator</i> <span class="var">.</span> which was alluded in the section on operators. In this case, we omit square brackets, first writing the name of the table, then a dot (period character), then the key string without any quotes:
+    <div class="code">
+      myrecords.lastkey <span class="com">-- holds 35</span>
+    </div>
+    In my opinion, the second syntax with the dot is easier to read and less clunky. We will be using this dot operator syntax throughout the whole tutorial series, so you should get accustomed to it.<br><br>
+    We can add new fields to record tables by simply specifying a new key and assigning a value to it, like so:
+    <div class="code">
+      myrecords.newkey = 4.5 <span class="com">-- we add a new key-value pair to the table</span>
+    </div>
+    <h4>Nested tables</h4>
+    Tables can hold any data type in its fields or elements (keep in mind the special meaning of <span class="var">nil</span>, though). It is worth noting that this includes referencing other tables:
+    <div class="code">
+      local innerTable = {key1 = -5, key2 = -10}<br><br>
+      local outerTable = {keyA = innerTable, keyB = -15}
+    </div>
+    Above we have <span class="var">outerTable</span>, which holds onto the table <span class="var">innerTable</span> via <span class="var">keyA</span>, and an integer value under <span class="var">keyB</span>. Of course, <span class="var">innerTable</span> has keys and values of its own.<br>
+    To access the <span class="var">innerTable</span> in a nested structure like this, we first index <span class="var">outerTable</span> with <span class="var">keyA</span>:
+    <div class="code">
+      outerTable.keyA <span class="com">–- this gives us innerTable</span>
+    </div>
+    and after that we add a second dot with the appropriate key from <span class="var">innerTable</span> to get the desired value from it:
+    <div class="code">
+      outerTable.keyA.key2 <span class="com">–- we access -10 from innerTable through outerTable</span>
+    </div>
+    Of course, in the above example we have access to the inner table through the <span class="var">innerTable</span> variable too, but it is entirely possible for there to be no such variable in the first place, making <span class="var">outerTable</span> the only point of entry to a table nested inside of it.<br><br><br>
+    The following is more of a curiosity, but we can also make a table reference itself:
+    <div class="code">
+      outerTable.keyC = outerTable <span class="com">-- outerTable refers to itself via keyC</span>
+    </div>
+    this will permit the bizarre, but completely valid Lua syntax:
+    <div class="code">
+      outerTable.keyB <span class="com">-- we get -15 from outerTable</span><br><br>
+      outerTable.keyC.keyC.keyC.keyB <span class="com">-- we can put any number of ".keyC" in the middle and still get -15 from outerTable</span>
+    </div>
+    As I said, treat this as a funny little fact. We will not have a legitimate use for this in our particle scripting endevours.<br><br><br>
+    Tables are very versatile data structures in Lua. They can be used to represent an ordered list of things (array-like tables) or a collection of miscellaneous data describing something (record tables). Tables can also exist in a mixed type, containing some array elements and some record fields, although this is less common – usually it is either one or the other. We will certainly see both types of tables being used in particle scripts, especially in the later chapters.<br><br>
+    <h4>Plugin data</h4>
+    The dot syntax (and its nested / chained variant) demonstrated above will also apply to another kind of structured data type we will very frequently encounter, called <strong>plugin data</strong>. This data type appears quite similar to record tables on a surface level, in that it also has “keys” and associated “values” which we may access with the dot syntax. However, the “keys” (in actuality, <i>fields</i>) of such plugin data are predetermined by the particle API. Unlike with tables, you usually cannot add new fields to plugin data entities. On top of that, the plugin carefully restricts what can and cannot be assigned to a particular field. For example, if the field can store only numbers, the plugin will forbid assigning a string, resulting in an error. Or if it is constrained to a range of values, only the values within that range will be accepted.<br><br>
+    This predefined data type is used to represent in Lua the internal data of the plugin’s particle system, including particles, particle groups and a couple of other data entities residing in the plugin. Each variant of plugin data has a distinct set of fields, therefore there is little reason to prolong this chapter and cover any of that here. Instead, the fields will be introduced as necessary, followed by a explanations of what they do or are responsible for. The manipulation of particles and their fields will be the main focus of the upcoming first chapter, demonstrating practical scripting in the particle API. Knowing how to access fields with the dot syntax is the most important thing to take away from this section.<br><br>
+    <i>Note: In the <strong>Programming in Lua</strong> manual, this data type is actually called <strong>userdata</strong>, meaning any kind of data that is defined outside of the Lua language, e.g. by some external library. However, you will likely not get much out of the userdata descriptions the manual provides, since they are generic and not tailored specifically to the particle plugin’s userdata. If anything, they are only useful for those wishing to work with the C++ source code of this plugin.</i>
+    <hr>
+    We have covered the absolute essentials of the Lua programming language needed to take the first steps in particle scripting. Again, by no means is this an exhaustive demonstration of the language, as I have left out many of its aspects and features by focusing exclusively on the ones that will be useful for scripting in this plugin. If you want a more detailed explanation of any subject covered in this chapter or if you want to learn about any other features offered by Lua, please visit the official Lua manual linked in the opening paragraph at the top of this page, it will give you a more thorough explanation of what interests you.<br><br>
+    <table width=100%>
+      <tr>
+      <td><a href="CoderIntro.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align:right"><a href="Chapter1.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+  </body>
+</html>

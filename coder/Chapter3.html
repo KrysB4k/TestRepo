@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3 – Mesh Particles</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <script src="copycode.js"></script>
+    <h1>Mesh particles</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter2_5.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter4.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table><br>
+    We have seen several particle effects achievable in this plugin so far. However, up until now, we exclusively used sprite particles for them.<br><br>
+    I decided to focus on sprite particles in the beginning of these tutorials, because they seem more familiar and approachable. Many TRLE builders have used FLEP’s Custom Smoke Emitters OCBs before, or are at least aware of their existence and have a general idea of what can be done with them. This allowed for a nice introduction to particle scripting in <strong>Chapter 1</strong>, where most aspects of particle effects were explained in relation to FLEP smoke emitters.<br><br>
+    Nevertheless, as was advertised in the introduction, sprite particles are not the only variant of particle available in the plugin. The plugin also gives <strong>mesh particles</strong> to our disposal. They may seem quite far removed from the idea of sprite-based particles at first sight, but they have a lot more in common than you might think. Gaining experience with sprite particles paved the path towards working with mesh particles. Remember, the main distinction between these two categories of particles is what computer graphics entity gets rendered at a particle’s position (either a 2D sprite or a 3D mesh), so the fields possesed by the particle instances for the respective category (sprite / mesh) reflect this difference. Fortunately, all particles have a set of common base properties that behave indentically in both categories of particles.<br><br>
+    This succinct chapter delves into everything you need to know about mesh particles, starting with a section comparing both kinds of particles, where the common fields are factored out, then moving onto emphasizing their distinguishing features. Mesh particles are a very interesting addition, which (hopefully) will broaden the horizons of what builders picture of when thinking of particle effects.<br>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Motivation for mesh particles</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Similarities between sprite parts and mesh parts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. How mesh parts differ from sprite parts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Object field and mesh field</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Rotation vector and angular velocity vector</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id6">6. Scale vector</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id7">7. Transparency field</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id8">8. Lighting type and color tint</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id9">9. Mesh particle functions</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id10">10. Limitations of mesh particles</a><br>
+    </strong><br>
+    <hr>
+    <a name="id1"><h3>Motivation for mesh particles</h3></a>
+    A form of mesh-based “particles” already existed in the Tomb4 engine. For example, projectiles like the ones fired by SETHA, DEMIGOD3, HARPY or mesh chunks flung around when enemies die due to explosive ammo, are examples of mesh particles in the original engine. However, there was never a way to control what these mesh particles do, since their behavior was hardcoded. You couldn’t even spawn them with triggers.<br><br>
+    The mesh particles brought forth by the plugin aim to fill this niche. They are under your full scripting control. You can access their fields, determine how they spawn and what they do after spawning. It is possible to make a mesh particle take the form of any mesh from any moveable slot present in the level, on top of being able to change its position, velocity, acceleration, lifetime and manipulate it with particle functions in update functions.<br><br>
+    Mesh particle instances are created with the built-in function <span class="var">createMeshPart()</span>. Like its counterpart, <span class="var">createSpritePart()</span>, it expects to receive a particle group as its single argument, and returns a blank-slate mesh particle that must be initialized by the init function. Everything so far is similar to working with sprite particles, right? Note that there is no distinction between “sprite” particle groups and “mesh” particle groups, there is only one kind of particle group that is used in either case. In theory, this means that you can have both kinds of particles belonging to the same group, but this is not recommendend. Prefer making separate groups for mesh particles and sprite particles, so each group has only one “type” of particle associated with it.<br><br>
+    If you need specific examples of where mesh particles can be useful, think of debris falling to the ground, an avalanche of rocks or snow making its way down a mountain side, throwable weapons for Lara, like hand grenades or molotov cocktails, or perhaps projectile attacks fired by enemy slots that never had them before, such as BADDY_2, MUMMY or AHMET. Did you get sold on mesh particles already? If so, let’s carry onward!<br><br>
+    <hr>
+    <a name="id2"><h3>Similarities between sprite parts and mesh parts</h3></a>
+    Mesh particles and sprite particles are treated as separate entities in the plugin. Nonetheless, there is an overlap of some properties/fields, common to both kinds of particles. I think this makes sense, as concepts of position, velocity and acceleration, as well as life span, are universal to particles in general.<br><br>
+    Since these overlapping fields work identically across all particles, I feel there is no point in explaining how they work again, they have already been covered in-depth in context of sprite particles and I would only end up repeating myself. Below are listed all the properties / fields, present both in mesh particles and sprite particles:<br><br>
+    <table cellpadding = "15" cellspacing = "15" class="tab">
+      <caption>Common fields of sprite parts and mesh parts</caption>
+      <tr>
+        <th><strong>Field name</strong></th>
+        <th><strong>Expected value</strong></th>
+        <th><strong>Explained in</strong></th>
+      </tr>
+      <tr>
+        <td class="var">lifeSpan</td>
+        <td class="var">integer (0 - 32767)</td>
+        <td><a href="Chapter1.html#id3">Particle lifetime</a></td>
+      </tr>
+      <tr>
+        <td class="var">lifeCounter</td>
+        <td class="var">integer (0 - 32767)</td>
+        <td><a href="Chapter1.html#id3">Particle lifetime</a></td>
+      </tr>
+      <tr>
+        <td class="var">pos</td>
+        <td class="var">vector3D</td>
+        <td><a href="Chapter1.html#id6">Particle position</a></td>
+      </tr>
+      <tr>
+        <td class="var">vel</td>
+        <td class="var">vector3D</td>
+        <td><a href="Chapter1.html#id10">Particle velocity</a></td>
+      </tr>
+      <tr>
+        <td class="var">accel</td>
+        <td class="var">vector3D</td>
+        <td><a href="Chapter1_5.html#id4">Particle acceleration</a></td>
+      </tr>
+      <tr>
+        <td class="var">emitterIndex</td>
+        <td class="var">tomb4 moveable indices</td>
+        <td><a href="Chapter1_5.html#id2">Particles emitted from objects</a></td>
+      </tr>
+      <tr>
+        <td class="var">emitterNode</td>
+        <td class="var">mesh indices</td>
+        <td><a href="Chapter1_5.html#id3">Particle emitter nodes</a></td>
+      </tr>
+      <tr>
+        <td class="var">roomIndex</td>
+        <td class="var">room indices</td>
+        <td><a href="Chapter2_5.html#room">Simple colliding particles (room index)</a></td>
+      </tr>
+    </table>
+    <br><br>
+    Now that we have these common, overlapping fields out of the way, we’ll focus on the unique fields of mesh particles, which set them apart from sprite particles.<br>
+    <hr>
+    <a name="id3"><h3>How mesh parts differ from sprite parts</h3></a>
+    In the previous section, we saw which of the sprite particle fields are the same for mesh particles. However, there are also other fields in mesh particles, which don’t have their exact counterpart in sprite particles.<br><br>
+    Because the rendered object in the case of mesh particles is fundamentally different, mesh particles must host a different set of parameters to describe the rendered mesh. For example, it would make no sense for the mesh particle to have a <span class="var">spriteIndex</span> field, considering a sprite won’t even be rendered for it.<br><br>
+    The source of sprites for sprite particles are the sprite texture slots, such as <strong>DEFAULT_SPRITES</strong>, <strong>MISC_SPRITES</strong> and <strong>CUSTOM_SPRITES</strong>. The <span class="var">spriteIndex</span> gives the index number to one of these sprite slots and this tells the sprite particle which sprite to use.<br><br>
+    However, with mesh particles, it works quite differently.<br>
+    <hr>
+    <a name="id4"><h3>Object field and mesh field</h3></a>
+    Meshes in the Tomb4 engine belong to specific moveable slots (though there are also meshes of static objects, but those can’t be used with mesh particles). Each moveable slot can have at most 32 meshes, indexed 0-31. Because there is no agglomerate <strong>DEFAULT_MESHES</strong> slot like we have for sprites, mesh particles must take these meshes from specific moveable slots present in the level WAD.<br><br>
+    <h4>Object field</h4>
+    First of all, how do we specify what moveable slot we want the particle to take meshes from? That’s the responsibility of the <span class="var">part.object</span> field of mesh particles. This is the numeric index of the moveable slot. These numeric indices are present in several places. In the Tomb Editor toolchain, this is the number in round parentheses (), before the name of a moveable slot in <strong>ALL_CAPS</strong>. You can also see this number in NG Center, in the <strong>SLOT MOVEABLE indices list</strong> on the <strong>Reference</strong> tab.<br><br>
+    The point I’m trying to get across is that this numeric slot index is the number that the <span class="var">part.object</span> field is expecting to receive. However, it would be quite difficult to memorize these numbers, you have to resort to looking them up in a listing, like in the aforementioned Reference tab of NG Center. For convenience, <span class="var">SLOT_</span> constants were implemented, that when used, get translated to the numerical slot indices in the Lua scripts. For example, instead of typing 0 for the LARA slot, you type <span class="var">SLOT_LARA</span> and it gets replaced by the numeric index <span class="var">0</span>. Similary, if you type <span class="var">SLOT_SKELETON</span>, it gets replaced by <span class="var">35</span>, and <span class="var">SLOT_ANIMATING2</span> gets replaced by <span class="var">429</span>. The default for <span class="var">object</span> is <span class="var">0</span>, i.e. <span class="var">SLOT_LARA</span>.<br>
+    <div class="code">
+      part.object = SLOT_SKELETON <span class="com">-- take meshes from the SKELETON moveable slot (35)<br>
+      -- this is equivalent to</span><br>
+      part.object = 35
+    </div><br>
+    After specifying an object slot, we also need to choose a specific mesh for the particle.<br><br>
+    <h4>Mesh field</h4>
+    Specifying the object is step one, specifying which mesh we want from the object is step two. With the <span class="var">part.mesh</span> field, we choose which mesh the particle takes the form of. The theoretical range for this field is 0-31. However, in practice, the maximum end of the range gets clamped to the highest index of mesh in the given slot, be it 14 for LARA, or 26 for BADDY_2.<br><br>
+    You can also store custom meshes for particles in other slots, like <strong>ANIMATINGX</strong> or <strong>NEW_SLOTX</strong>. A neat thing to do in the init function, is to have a few different mesh variations in an object and select them at random with <span class="var">randint()</span>.
+    <div class="code">
+      part.mesh = randint(0, 10)
+    </div><br>
+    Another fun idea to try is animating the mesh index in the update function. As a matter of fact, the <span class="var">particleAnimate()</span> function, when applied to a mesh particle, already does this (by analogy to <a href="Chapter2_5.html#id2">animated sprite particles</a>), there is no need to reinvent the wheel. You just specify the starting mesh, ending mesh, the framerate and the plugin does the rest.<br><br>
+    The above two fields are the most essential to make use of mesh particles, but there are also other important fields to be aware of.<br>
+    <hr>
+    <a name="id5"><h3>Rotation vector and angular velocity vector</h3></a>
+    While a sprite is a 2D entity, a mesh is a 3D entity. This has concrete implications for how some properties of mesh particles will be different in comparison to sprite particles. One such property is that of rotation.<br><br>
+    In 2D space, rotation is pretty simple. You can rotate an object clockwise or counter-clockwise. But disregarding the direction in which we choose to rotate, we see there is only one way to rotate in 2D space, because there is only one 2D plane in which the rotation can occur. We say that there is only one <i>degree of freedom</i> in 2D rotation. Because of this, in the case of sprite parts, it is enough to have one angle value, <span class="var">part.rot</span> and one angular velocity value, <span class="var">part.rotVel</span>.<br><br>
+    In 3D space, it gets a bit more complicated. Notice there are 3 axes on which you can rotate a 3D object. For each way to rotate, we have three separate and independent angle values, rotating about the X, Y and Z axes. This means that there are three <i>degrees of freedom</i> for 3D rotation. Unlike for 2D sprites, a single value each for rotation and angular velocity would not be enough.<br><br>
+    With mesh particles, we also have <span class="var">part.rot</span> and <span class="var">part.rotVel</span>, however they are no longer single numeric values, but <strong>rotation vectors</strong>. Rotation vectors are special subtype of vector. It is similar to a coordinate vector like <span class="var">part.pos</span>, in that it has x, y and z components. But that’s where the similarities end. Rotation vectors cannot be used for representing XYZ coordinates, nor can coordinate vectors be used for representing 3D rotations. Therefore, even though both types of vectors seem to have the same components, they are actually two very different things and thus <u>are not interchangeable</u> with each other.<br><br>
+    The range of values for each of the x, y, z components of a rotation vector goes from 0 to 2π radians, which, if you remember, corresponds to a 0 to 360 range in degrees. Naturally, any value above 2π radians loops back around to 0.
+    <div class="code">
+      part.rot.x <span class="com">-- 0 to 2*pi</span><br>
+      part.rot.y <span class="com">-- 0 to 2*pi</span><br>
+      part.rot.z <span class="com">-- 0 to 2*pi</span><br><br>
+      part.rotVel.x <span class="com">-- 0 to 2*pi</span><br>
+      part.rotVel.y <span class="com">-- 0 to 2*pi</span><br>
+      part.rotVel.z <span class="com">-- 0 to 2*pi</span>
+    </div>
+    In analogy to <span class="var">rot</span> and <span class="var">rotVel</span> for sprites, the 3D <span class="var">rot</span> vector represents the current rotation of the mesh about the XYZ axis, while <span class="var">rotVel</span> specifies the amount by which the mesh is rotated on each frame, for each respective axis. For example, in the init function:
+    <div class="code">
+      part.rot.x = randfloat(0, PI_TWO)<br>
+      part.rot.y = randfloat(0, PI_TWO)<br>
+      part.rot.z = randfloat(0, PI_TWO)
+    </div>
+    will give each mesh particle a random, unique rotation, whereas:
+    <div class="code">
+      part.rotVel.y = PI * 0.05
+    </div>
+    will cause the mesh to rotate by increments of <span class="var">PI * 0.05</span> about the vertical Y axis. Reminder that <span class="var">randomNegate()</span> is also applicable here, in case you want an even chance for the mesh to rotate in the opposite direction.<br>
+    <hr>
+    <a name="id6"><h3>Scale vector</h3></a>
+    Continuing with the differences between 2D sprites and 3D meshes, we have the concept of size. In 2D sprite particles, we had <span class="var">part.sizeStart</span>, <span class="var">part.sizeEnd</span> and <span class="var">part.sizeCust</span>, each addressing the sprite size property in an absolute manner (remember the notion of the particle square?). However, for mesh particles, a concept of relative size applies instead, due to how meshes work.<br><br>
+    Object meshes have an innate size to them, which we see when we examine the skeleton (mesh tree) of the object in question. This is the default size of the mesh, i.e. the way it will appear when the engine attempts to render it with no alterations. It would be a shame though, if this was the size we were forced to always use. Say that you have some mesh particles simulating pieces of debris. Naturally, some of those pieces will be larger and others will be smaller. It would be a bother to have to manually create variants of different size just to give them size variations.<br><br>
+    Instead, mesh particles host a <span class="var">part.scale</span> property. As you may be able to guess, it is responsible for setting the scale of the mesh, in reference to the default size. It would perhaps be entirely reasonable if this property was a single value that determined the scale in general. But what if you could independently scale the mesh on the three axes: X, Y, Z?<br><br>
+    Good news, you can do that, because this property is a <strong>scale vector</strong>. It is yet another specialized kind of vector, different to rotation vectors and coordinate vectors. You cannot swap out scale vectors with the other two types of vectors. They are their own kind of beast, responsible for setting the scale of a mesh particle, not rotation nor position.<br><br>
+    Anyway, it was mentioned that the scale is in relation to the default size of a mesh. Therefore, by default, the scale vector has the values:
+    <div class="code">
+      part.scale.x = 1<br>
+      part.scale.y = 1<br>
+      part.scale.z = 1
+    </div>
+    A value of 1 for a given axis means 100% of the default scale for that axis. Therefore, each component allows to specify a fraction of the default scale for a given axis:
+    <div class="code">
+      part.scale.x = 0.5 <span class="com">-- 50% scale on X axis</span><br>
+      part.scale.y = 1.5 <span class="com">-- 150% scale on Y axis</span><br>
+      part.scale.z = 2 <span class="com">-- 200% scale on Z axis</span>
+    </div>
+    The above will mean that the mesh will be downscaled by half on its X axis, upscaled 1.5 times on the Y axis and 2 times on the Z axis. Only 0 and positive values can be used for the scale vector components (since negative scale does not really make much sense). If all components of <span class="var">part.scale</span> are 0, the mesh will be infinitely shrunk, thus not rendered by the engine.<br><br>
+    To give the particle a uniform scale factor on XYZ, you set each component to the same value, for example:
+    <div class="code">
+      local scale = randfloat(0.5, 2) <span class="com">-- random float between 0.5 and 2</span><br>
+      part.scale.x = scale<br>
+      part.scale.y = scale<br>
+      part.scale.z = scale
+    </div>
+    Mesh particle scale can also be animated in update functions, allowing mesh particles to grow or shrink in real time.
+    <hr>
+    <a name="id7"><h3>Transparency field</h3></a>
+    Do you know how enemies in TR4 and TR5, after being killed, gradually disappear, becoming more and more transparent? This was a change of the behavior players were used to from TR1-3, where the bodies of dead enemies remained in the level map. Presumably, it was done to improve performance of the latter games (by vanishing the dead bodies, the renderer had less polygons to do deal with).<br><br>
+    Anyway, this vanishing effect is applicable to mesh particles. The <span class="var">part.transparency</span> field allows you to control the transparency level. It accepts float values between 0.0 (fully opaque) and 1.0 (fully transparent – i.e. invisible). Therefore, making a particle vanish slowly over its lifespan is a simple matter of setting the <span class="var">part.transparency</span> to the value of <span class="var">part.t</span> in the update function:
+    <div class="code">
+    local function vanishUpdate(part)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;part.transparency = part.t<br>
+    end
+    </div>
+    You can also transform <span class="var">part.t</span> with a function like <span class="var">sin()</span> (remapped to fit into the expected 0 to 1 range) to make the mesh blink in and out of existence. Or you can perhaps make the particle to materialize and become more opaque, the closer Lara comes towards it. So many possibilities!<br>
+    <hr>
+    <a name="id8"><h3>Lighting type and color tint</h3></a>
+    Mesh particles, depending on the lighting type applied on the slot that hosts the meshes it comes from (dynamic or static), allow for a dynamic or static lighting type.<br><br>
+    Dynamically lit mesh particles respond to ambient room lighting as well as dynamic light sources such as fires, flares or gunshots:<br><br>
+    Differently, if the static lighting is applied, the mesh particles do not respond to room ambience nor dynamic lights. In exchange, this permits the statically lit mesh particles to have a <strong>color tint</strong>.
+    The color tint is accessed via the <span class="var">part.tint</span> field. This is a <span class="var">ColorRGB</span> property, as were <span class="var">colStart</span>, <span class="var">colEnd</span> and <span class="var">colCust</span> in sprite particles.<br><br>
+    <div class="code">
+      part.tint.r <span class="com">-- tint red component</span><br>
+      part.tint.g <span class="com">-- tint green component</span><br>
+      part.tint.b <span class="com">-- tint blue component</span>
+    </div>
+    This field corresponds to the RGB tint on the statically lit mesh. Note that the tint does not work if the mesh lighting mode is set to dynamic.<br>
+    <hr>
+    <a name="id9"><h3>Mesh particle functions</h3></a>
+    Mesh particles can use all of the particle functions available for sprite particles, with no exceptions. In some cases, there are minor changes in how they work when applied to mesh particles, an example being <span class="var">ParticleAnimate()</span>, which animates over the <span class="var">part.mesh</span> field rather than the <span class="var">part.spriteIndex</span> field.<br><br>
+    However, there are also a select few particle functions that are unique and specific to mesh particles. They cannot be used with sprite particles, attempting to do so will cause the particle system to throw an error.<br><br>
+    These functions are listed below.<br><br>
+    <h4>MeshShatter</h4>
+    The <span class="var">meshShatter()</span> function is a specialized version of the <span class="var">particleKill()</span> function. It takes a single argument, the mesh particle. Just like <span class="var">particleKill()</span>, it kills the underlying particle instantly, but on top of that, creates a “shattering” effect for the mesh. This can be useful for projectiles which shatter on impact, like the ones using meshes from the <strong>BUBBLES</strong> slot. In such cases, you should check that the particle made a collision with room geometry or the target moveable before engaging the shatter function.
+    <div class="code">
+      if particleCollideWithWalls(part, 1.0) then<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;meshShatter(part) <span class="com">-- kills the particle and shatters the mesh</span><br>
+      end
+    </div><br>
+    <h4>MeshAlignToVel()</h4>
+    The <span class="var">meshAlignToVel()</span> function aligns the facing (X and Y rotation) of the mesh particle to its <span class="var">vel</span> vector, i.e. make it face the direction in which it is moving. The function takes 3 arguments:
+    <div class="code">
+      meshAlignToVel(part, alignFactor, invert)
+    </div>
+    The arguments are as follows:
+    <ul>
+      <li><span class="var">part</span> – the mesh particle<br>
+      <li><span class="var">alignSpeed</span> – float between <span class="var">0.0</span> and <span class="var">1.0</span> determining how quickly the alignment to the direction occurs. It works as a percentage, where 1.0 means 100%, i.e. instantaneous alignment. Smaller values smooth out the aligment to the target facing over several frames.<br>
+      <li><span class="var">invert</span> – boolean, if set to <span class="var">true</span>, it flips the target rotation so the mesh faces the opposite direction. Certain meshes for unknown reasons have the opposite facing in the level wad, this argument allows to obtain the correct mesh facing in those cases.<br>
+    </ul>
+    Again, this function is applicable to projectiles, specifically homing ones, which curve to face the target up front (SETHA, DEMIGODS shoot these homing projectiles in the original Tomb4 engine). The <span class="var">alignSpeed</span> factor controls the “delay” of how quickly the meshes adapt their facing to changes in direction. The maximum of <span class="var">1.0</span> can sometimes result in jerky motion, lower values like <span class="var">0.3</span> to <span class="var">0.1</span> smoothen it out. Since only the rotation on the X and Y axis is affected, if the particles travel straight up or straight down, this can result in very abrupt “twists” when the facing is corrected. There is not much that can be done to fix this behavior.<br><br>
+    <h4>MeshAlignToTarget()</h4>
+    The <span class="var">meshAlignToTarget()</span> function aligns the facing (X and Y rotation) of the mesh particle to the <span class="var">target</span> 3D vector given as one of the arguments. The function takes 4 arguments in total:
+    <div class="code">
+      meshAlignToVel(part, target, alignFactor, invert)
+    </div>
+    The arguments are as follows:
+    <ul>
+      <li><span class="var">part</span> – the mesh particle<br>
+      <li><span class="var">target</span> – the target 3D vector to which the mesh particle will turn to<br>
+      <li><span class="var">alignSpeed</span> – float between <span class="var">0.0</span> and <span class="var">1.0</span> determining how quickly the alignment to the direction occurs. It works as a percentage, where 1.0 means 100%, i.e. instantaneous alignment. Smaller values smooth out the aligment to the target facing over several frames.<br>
+      <li><span class="var">invert</span> – boolean, if set to <span class="var">true</span>, it flips the target rotation so the mesh faces the opposite direction. Certain meshes for unknown reasons have the opposite facing in the level wad, this argument allows to obtain the correct mesh facing in those cases.<br>
+    </ul>
+    Differently to <span class="var">meshAlignToVel()</span>, which orients the mesh towards the velocity vector of the particle, <span class="var">meshAlignToTarget()</span> allows you to specify an arbitrary position vector to which the particle will turn to. An example could be something like:
+    <div class="code">
+      local laraid = getLaraIndex()<br>
+      local mesh = 14<br>
+      local target = getItemJointPosition(laraid, mesh, 0, 0, 0) <span class="com">-- get the position of Lara's head mesh 14</span><br><br>
+      meshAlignToTarget(part, target, 0.2, false) <span class="com">-- make the mesh particle "look at" Lara's head</span>
+    </div>
+    <hr>
+    <a name="id10"><h3>Limitations of mesh particles</h3></a>
+    Mesh particles are a great extension to the concept of particles, opening up new potential for new visual effects and unique gameplay ideas. Nonetheless, there are still certain limitations and restrictions that are associated with them. For one, mesh particles cannot have the same properties as moveable items. It is impossible for them to consists of skeletons as moveable objects do. You can only take individual meshes from a moveable object slot. Related to this, it is not possible for the mesh particles to be animated with conventional keyframe animations. The only way to “animate” the particles is to jump through the meshes of the object, as a sequence of still-frames (e.g. via <span class="var">particleAnimate()</span>). Also, using static meshes (belonging to static slots such as <strong>PLANT0-9</strong>, <strong>ARCHITECTURE0-9</strong>, etc.) is also not currently possible.<br><br>
+    As for the “particle” aspect itself, there is a smaller pool of mesh particles at your disposal (1024) than sprite particles (4096). This is because meshes tend to consist of several polygons with numerous vertices, whereas a sprite consists of only a single polygon (a quad, with 4 vertices), so it’s less complicated to render and, in theory, will not overflow the vertex buffer (the number of vertices that can be simultaneously drawn on screen) as quickly.<br>
+    <hr>
+    We have finally covered the second main variant of particles in the plugin, mesh particles. They have some specific differences compared to sprite particles, but hopefully, after reading to the end of this chapter, they have no more secrets to hide from you.<br><br>
+    In the next chapter, we will talk more in-depth about particle groups themselves, which bring even more possibilities to the table, as you will see for yourself.
+  </body>
+</html>

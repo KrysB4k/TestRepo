@@ -1,0 +1,57 @@
+body {
+  margin: 0;
+  text-align: justify;
+  line-height: 1.5;
+  font-size: 110%;
+}
+
+ul {
+  line-height: 1.25;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+h1 {
+  text-align: center;
+}
+
+hr {
+  margin: 48px 0;
+}
+
+span.var {
+  color: #324048;
+  font-family: 'Consolas';
+  font-size: 95%;
+  font-weight: bold;
+}
+
+div.code {
+  background: whitesmoke;
+  border: 1px solid #ddd;
+  border-left: 3px solid #7092be;
+  color: #324048;
+  page-break-inside: avoid;
+  font-family: 'Consolas';
+  font-size: 95%;
+  font-weight: bold;
+  line-height: 1.6;
+  margin-top : 1.5em;
+  margin-bottom: 2.5em;
+  max-width: 100%;
+  overflow: auto;
+  padding: 1.5em 1.5em;
+  display: block;
+  word-wrap: break-word;
+}
+
+img.fig {
+  display: block;
+  margin: 24px auto;
+}
+
+canvas {
+  cursor: pointer;
+}

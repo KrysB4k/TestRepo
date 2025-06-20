@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>4 – Particle Groups</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <script src="copycode.js"></script>
+    <h1>Particle groups, in-depth</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter3.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter5.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table><br>
+    Being this far into the tutorials, you are well aware of the existence of particle groups. To recap everything we have learned about them, we know they serve to classify particles into “types”, which have similar behavior and characteristics. Each time we create a particle group, we may (optionally) give an init and update function to this group. The init function is responsible for determining how (and under which conditions) particles of the given type spawn into the game world and giving the particles their initial properties (i.e. <i>init</i>ializing the particles). The update function is responsible for controlling the particles after being spawned, giving you the ability to program additional behavior for them beyond what the particle system does with particles on its own (updating the position, blending size and color, decrementing the life counter).<br><br>
+    However, we have not really explored particle groups beyond that, since the particle effects themselves were the main focus. As it turns out though, particle groups themselves have several fields and properties which further control the characteristics of particles beloging to the group.<br><br>
+    In this chapter, we will learn of most of these remaining features, such as the blending modes and draw modes (applicable only to sprite particles), the tethering system, which explains the whole picture of how <span class="var">emitterIndex</span> and <span class="var">emitterNode</span> properties really work.<br>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Reminder on groups, init and update functions</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Auto-triggered and manually triggered particles</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Saved particles</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Particle limits and particle count</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Tethering system</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id6">6. Blending modes</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id7">7. Drawing modes</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id8">8. Sprite slot</a><br>
+    </strong><br>
+    <hr>
+    <a name="id1"><h3>Reminder on groups, init and update functions</h3></a>
+    This far into the tutorials, the drill of creating groups via the <span class="var">createGroup(init, update)</span> function should be clear to you. By calling this function, you are creating a new particle group, i.e. a grouping of particles that share similar characteristics with each other. Among these characteristics is having the same init function and update function.<br><br>
+    The two arguments: <span class="var">(init, update)</span> are either the function name variables (of the init as the first, then the update as the second argument), or the special value <span class="var">nil</span>. This mechanism allows to opt out of specifying functions for a given group.<br><br>
+    The use-case for omitting (passing <span class="var">nil</span> for) an update function we’ve already seen all the way back in <strong>Chapter 1</strong>, it’s simply when we don’t need our particles being updated or controlled in any special way and the generic update done by the particle system plugin (decreasing life counter, blending colors and sizes) is enough for us. On the other hand, if we want the particles to do more than that, we must pass an update function which manipulates the particles in our desired way.<br><br>
+    Omitting an init function is a bit more nuanced. We use <span class="var">nil</span> if we don’t want the particles to be spawned into the world by ordinary means (that is, automatically during the game loop). One such example is if the particles are spawned by other particles. We will then pass <span class="var">nil</span> for the init argument, then call what would be the init function inside the update function of the parent particles. This can be used to make the parent particle leave behind “trails” of child particles (smoke, flames, etc), amongst other things.<br><br>
+    As the return result of the <span class="var">createGroup()</span> function, we get a particle group with the assigned init and update functions (or lack thereof).
+    <div class="code">
+      local group<br><br>
+      <span class="com">-- init, update function definitions</span><br><br>
+      group = createGroup(init, update) <span class="com">-- group creation</span>
+    </div>
+    Our deliberations on particle groups thus far seemed to stop there, with the assumption that there is not much else to say on the topic of particle groups. As it turns out, though, there is a whole bunch of features associated with particle groups. I have chosen not to get into that topic until now, to avoid muddying the waters of essentials for basic particle effects in the first chapters. However, as you are now more experienced, I will finally reveal what kinds of features were lurking behind particle groups this whole time.<br>
+    <hr>
+    <a name="id2"><h3>Auto-triggered and manually triggered particles</h3></a>
+    The default behavior of each particle group is to have its init function executed once on each game tick in the main game loop. That’s fine and dandy if this is indeed the behavior we want - to have particles spawning by themselves, or optionally under some specific condition, like once every n-th frame, as we <a href="Chapter1_5.html#interval">have done before</a>.<br><br>
+    We can opt out of having an init function specified for the particle group when we create it with <span class="var">createGroup()</span>. To be clear, in this situation, the particle system still <i>attempts</i> to call the group’s init function on each single frame. However, because we have set it to <span class="var">nil</span>, it’s treated as if there was an empty init function (no instructions).<br><br>
+    We can also do the opposite, which is specifying an init function to the group, but instruct the particle system to not call it automatically. Why would such a feature even be needed? Well, sometimes, you may prefer to have particles triggered manually, not automatically per each game cycle. An example could be particles triggered on demand, via flipeffects. Yes, that too is possible in the plugin!<br><br>
+    Particle groups have a field called <span class="var">autoTrigger</span>, which determines whether or not the group init function gets automatically triggered by the plugin. It’s a boolean field, with the default value set to <span class="var">true</span>, indicating the automatic triggering is enabled. If set to <span class="var">false</span>, it will set the group to manual triggering mode, meaning the particle system no longer will call this group’s init function on its own, per each frame. You must use the aforementioned flipeffect to trigger the particle group.<br>
+    <div class="code">
+      group.autoTrigger = false <span class="com">-- this particle group does not get auto-triggered by the particle system</span>
+    </div>
+    After you set the <span class="var">autoTrigger</span> field to false, the particle system no longer spawns the particles of a given group automatically. Instead, spawning these particles is left at your discretion. One option is to use <strong>bounded functions</strong>, a mechanism provided by the plugin, for the purpose of triggering particle effects with TRNG.<br><br>
+    <h4>Flipeffect 1 of Plugin_ParticleSystem and function binding</h4>
+    Flipeffect 1 in Plugin_ParticleSystem allows the plugin to call a <strong>registered Lua function</strong>. This is a regular Lua function, defined in the level script, that neither takes arguments or returns values. However, what makes it special is that it gets <strong>registered</strong> to the plugin with a special built-in function, <span class="var">bindFunction()</span>.<br><br>
+    The <span class="var">bindFunction()</span> function takes two arguments. The first is a numeric index, starting from <span class="var">1</span> and counting upwards. The second is the Lua function that you would like to bind to the aforementioned index:
+    <div class="code">
+      local function myFunction()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- we define what the function does...</span><br>
+      end<br><br>
+      bindFunction(1, myFunction) <span class="com">-- we bind the function to index 1</span>
+    </div>
+    Okay, we registered the function to index 1. What now? Well, let’s read the description of the Plugin_ParticleSystem Flipeffect 1:
+    <div class="code">
+      Particles. Call registered Lua function with &lt;&amp;&gt; index
+    </div>
+    Do you see the point of it now? After we register our custom function with <span class="var">bindFunction()</span>, we are able to trigger calling the Lua function from the level script with Flipeffect 1!<br><br>
+    Fine, but how does this allow us to spawn particles? Well, for instance, we can call the desired init function of a group in the registered function:
+    <div class="code">
+      local function myFunction()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;initFunction() <span class="com">-- call the init function</span><br>
+      end
+    </div>
+    Notice that the init function itself fits the criteria of what is allowed to be a registered Lua function: it has no arguments and returns no values. We might as well register the init function directly, then:
+    <div class="code">
+      bindFunction(1, initFunction) <span class="com">-- we bind the function to index 1</span>
+    </div>
+    If you place the trigger for Flipeffect 1 with index 1 selected in the &lt;&amp;&gt; timer field and step on it in the level, you will see that the particle gets triggered once every time you step on the tile! You can use Flipeffect 1 as you would any other plugin trigger, to have particle effects activated from the TRNG side with the registered functions.<br><br>
+    If for some reason you do not have access to the init function used for a particle group (for example, if it’s defined in a <strong>module script</strong>, something we will talk about in the next chapter), there is another way to make the function trigger an init function. It is the built-in <span class="var">invokeInit()</span> function, but I will post-pone talking about it until we get to modules.<br>
+    <hr>
+    <a name="id3"><h3>Saved particles</h3></a>
+    You might have noticed, especially with long lived particles, that when you save the game and reload, existing particles in the game world are lost (though as long as the init function is active, new ones get spawned in their place). Particles, by default, do not get stored in the savegame. This is actually the intended behavior of the plugin, with a simple reason – thousands of particles included in the save will bloat save files quite significantly. If said particles are short-lived and mainly decorative (smoke, flames), there isn’t a good reason to store them in the save file. If the effect is still active, the particles should quickly respawn anyway.<br><br>
+    However, not all particles are decorative, but may serve a significant purpose in the game, such as traps, projectiles, elements of puzzles for game progression, etc. Here, a particle suddenly disappearing due to a save being reloaded would be a disaster, causing serious, game breaking bugs or softlocks that prevent further progress. Fortunately, particles CAN be included in save files.<br><br>
+    If you desire a certain particle type to get saved and reloaded, there is the particle group setting, <span class="var">saved</span>. It is a boolean set to <span class="var">false</span> by default. Setting it to <span class="var">true</span> will cause all particles of the given group to be saved in save files and restored from the saves after loading, in the exact same state as during the save.
+    <div class="code">
+      group.saved = true <span class="com">-- enables particles from the group to be saved and reloaded</span>
+    </div>
+    A recommendation is to only do this for particle effects that genuinely need save persistence, such as the aformentioned traps or projectiles or particles with really long lifespans, which take a while to respawn.<br><br>
+    <h4>Warning on changing scripts and savegame stability</h4>
+    The saving feature for particle groups should ideally be enabled as last, after you are finished working on all of the particle effects used for a level. The integrity of the save files can be guaranteed only if the effect scripts used for a level did not change between when the save was made and when was reloaded. In case any changes were made to the level script between saving and loading, the safest option is to delete <u>all</u> the save files and start fresh. I know, this is probably not what you want to hear. Unfortunately, the effects of loading a save file if the script has been altered in between cannot be predicted. Reload such save files <u>at your own risk</u>, you have been warned.
+    <hr>
+    <a name="id4"><h3>Particle limits and particle count</h3></a>
+    If you were spawning multiple particles with long lifespans, you may have realized that you can have thousands of particles of the same particle group active at once. Sometimes, for various reasons, it may however be useful to limit the number of particles able to spawn for a specific particle group. Perhaps the particles have a heavy update function which causes lags, if the particles are spawned in excess. Or perhaps you simply want to have a hard limit to the pool of particles of a given type, that is lower than the maximum cap of particles.<br><br>
+    The good news is, you can! The particle group field <span class="var">partLimit</span> allows you to set a positive integer number, which will cap the amount of particles able to spawn for a given group, to that number.
+    <div class="code">
+      group.partLimit = 150 <span class="com">-- set maximum of particles for "group" to 150</span>
+    </div>
+    The above will cause the group <span class="var">group</span> to have no more than 150 particles active at the same time. If any more particles will attempt to spawn (auto-triggered or manually triggered), the logger will receive the following warning message:
+    <div class="code">
+      <span style="color:red">warning message placeholder</span>
+    </div>
+    Of course, this prevents the particles from spawning, but the warning message will be spammed in the logger. To supress the warning, you need to check if the group limit was reached, before attempting to spawn another particle. You can do this in two equivalent ways.<br><br>
+    The first way is by checking the read-only group field, <span class="var">partCount</span>. As you might figure, it holds the number of currently active particles for the given group. You just need to compare the group’s <span class="var">partCount</span> against the <span class="var">partLimit</span>, before creating the particle in the init function:
+    <div class="code">
+    local group<br><br>
+    local function initFunction()<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- check if partCount < partLimit</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;if group.partCount < group.partLimit then<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(group) <span class="com">-- this will make partCount increase by 1</span><br><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- rest of init</span><br><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;end <span class="com">-- end of if condition</span><br>
+    end <span class="com">-- end of initFunction</span>
+    </div>
+    The alternative to the above is to use the <span class="var">checkLimit()</span> built-in function. It takes the group as an argument and returns the boolean <span class="var">true</span> if the group <span class="var">partLimit</span> has <u>not</u> been reached yet. Otherwise, the function returns <span class="var">false</span>. A reminder that Lua allows to omit the explicit comparison of a boolean to the <span class="var">true</span> or <span class="var">false</span> value. In fact, this omission is the recommended coding style:
+    <div class="code">
+    local group<br><br>
+    local function initFunction()<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;if checkLimit(group) then <span class="com">-- implictly check for true</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(group)<br><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- rest of init</span><br><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;end <span class="com">-- end of if condition</span><br>
+    end <span class="com">-- end of initFunction</span>
+    </div>
+    Either of the two examples achieve the same thing, which is supressing the logger warnings when a <span class="var">partLimit</span> of a given group is reached. An improvement would be perhaps to isolate the particle initialization itself to a separate, dedicated function, leaving the decision logic to the “main” init function (recall that we have done something similar in context of the <a href="Chapter1_5.html#newfunc">spawnrate modification</a>).<br>
+    <hr>
+    <a name="id5"><h3>Tethering system</h3></a>
+    The <span class="var">part.emitterIndex</span> and <span class="var">part.emitterNode</span> fields, if you remember, allowed to <a href="Chapter1_5.html#id3">spawn particles around moveables</a> or <a href="Chapter1_5.html#id4">near specific meshes</a> of said moveables. This changed the particle spawn positions to be relative to the moveable / mesh, so a <span class="var">part.pos</span> like <span class="var">(x: 256, y: -512, z: 1024)</span> would make the particle position an offset from the object / mesh, instead of it appearing at the world coordinates (X: 256, Y: -512, Z: 1024). However, I alluded to this being only part of the full story behind this feature. Well, the time has come to reveal this full story, so strap yourself in!<br><br>
+    <h4>How it <i>really</i> works</h4>
+    The <span class="var">emitterIndex</span> and <span class="var">emitterNode</span> properties are an integral element of the plugin’s particle <strong>moveable tethering system</strong>. The tethering system allows particles to be constrained, temporarily or indefinitely, to a specific moveable index via <span class="var">emitterIndex</span> or optionally to a mesh of said moveable via <span class="var">emitterNode</span>. This constraint makes the particle’s coordinate system relative to the chosen moveable / mesh. The duration of the constraint is determined by something known as a <strong>cutoff point</strong>. If a particle has been alive for longer than the number of game frames specified by the cutoff point, the particle gets released from the moveable (<span class="var">emitterIndex</span> and <span class="var">emitterNode</span> both get set to <span class="var">-1</span>) and the coordinate system of the particle becomes global (which is the default state of particles).<br><br>
+    The default duration of the <strong>cutoff point</strong> is 0 game frames, meaning that the particle gets released immediately after being spawned at the given coordinates. This effectively makes for a handy way to make the particle spawn near the moveable, but get instantly freed from the moveable after the init function exits, thus “spawning at the moveable”.<br><br>
+    What if the cutoff point is longer, meaning the particle is not released immediately? The particle maintains relative position to the object, even if the object is moving around in the game world. It makes the particles move within the object’s frame of reference, until the time indicated by the cutoff point elapses. If the cutoff point is greater or equal to the particle <span class="var">lifeSpan</span>, the particle remains tethered to the moveable.<br><br>
+    To give an illustrative analogy for the tethering system and moving with the moveable’s frame of reference, imagine passengers flying in an airplane. The passengers are the particles, while the airplane is the moveable given by <span class="var">emitterIndex</span>. The cutoff point is the duration of the flight in this analogy. As a passenger (particle), you can move freely around the aircraft. In theory, you can move, run, jump around just like back down on Earth (though the flight attendants may not appreciate this kind of behavior, but that’s besides the point). Simultaneously, by proxy of being in the aircraft, you are also soaring across the sky at several hundreds of kilometers/miles per hour! So, you have the freedom to move around the plane deck, all while zipping through the air at high speeds, by proxy of the aircraft. Therefore, your movement, when viewed from outside the aircraft, is a net sum of the motion instilled on you by the aircraft, plus any motion you do yourself within the aircraft.<br><br>
+    In a similar way, the particles constrained to moveables move together with the moveable, as one unit. The <span class="var">pos</span> vector is therefore relative to the position of the moveable. At the same time, the particles also have additional motion independent of the moveable through their velocity vector <span class="var">vel</span>. Only once the cutoff point is reached, they lose this constraint to the moveable’s frame of reference. Of course, the airplane analogy is not perfect, as the particle can travel even far outside the vicinity of the tethering moveable, wheareas as a passenger of the airplane, you are confined to the plane deck and cannot travel outside of it, at least not without losing the constraint of the aircraft (and, likely, falling down to your demise). Nevertheless, the analogy still conveys the essence of the tethering system in some capacity. With that out of the way, let’s get into the specifics of the tethering system in the plugin.<br><br>
+    All things related to the tethering system are controlled by the <span class="var">attach</span> field of particle groups, meaning that the tethering settings are controlled for a particle group as a whole. The <span class="var">attach</span> field is comprised of a few sub-fields itself. Among them are the the <span class="var">cutoff</span> field, the <span class="var">random</span> field and the <span class="var">tetherType</span> field. Let’s describe the first two and then the latter one.<br><br>
+    <h4>The cutoff and random fields</h4>
+    The <span class="var">cutoff</span> sub-field of <span class="var">attach</span> is the cutoff point mentioned earlier. It decides the point in the particle’s lifespan at which the “airplane flight trip” is over, i.e. when the particles ceases to be attached to the moveable and begins moving independently of it. The range of accepted values is identical to <span class="var">part.lifeSpan</span> / <span class="var">part.lifeCounter</span>, i.e. <span class="var">0</span> to <span class="var">32767</span>. Its default value is <span class="var">0</span>, anyway.<br><br>
+    If a cutoff point is set to a value of <span class="var">100</span>, it means that once a particle reaches a life duration of 100 game frames (notice that this is when <span class="var">part.lifeSpan - part.lifeCounter</span> is equal to 100, due to the <span class="var">lifeCounter</span> counting down to 0), it will get detached from the moveable.<br><br>
+    What if the particle has a <span class="var">lifeSpan</span> shorter than <span class="var">100</span>? Simple, in this case it will never get detached from the moveable for as long as it’s alive. This means that it is possible to set a cutoff value which makes particles attach for their entire lifespan. Setting <span class="var">cutoff</span> with special constant <span class="var">NO_CUTOFF</span> ensures this will always be the case, regardless of the individual <span class="var">lifeSpan</span> value is for each particle of the group.
+    <div class="code">
+      group.attach.cutoff = NO_CUTOFF <span class="com">-- ensures that the particles are always attached to the moveable</span>
+    </div>
+    Notice that if you give the group a cutoff value like <span class="var">100</span> (and the particle <span class="var">lifeSpan</span> is longer), all of the particles will detach at the same point of their life. For some cases, this is desired, but perhaps not always. In some circumstances, it might be preferable if each particle detaches at a slightly different (randomized) time.<br><br>
+    This is what the <span class="var">random</span> field is for. By default, its value is also set to <span class="var">0</span>. What <span class="var">random</span> does is it generates a random integer between <span class="var">0</span> and a maximum equal to the value of <span class="var">random</span>. This value is unique and constant to each particle, meaning it doesn’t change throughout the specific particle’s life. Then, this random integer gets added to the cutoff point for that particle. As a result, this will make different particles detach at different times, the effective cutoff point being somewhere in the range (<span class="var">cutoff</span>, <span class="var">cutoff + random</span>).<br><br>
+    Here’s a specific example:
+    <div class="code">
+      group.attach.cutoff = 20<br>
+      group.attach.random = 10
+    </div>
+    We have a <span class="var">cutoff</span> set to 20 and a <span class="var">random</span> set to <span class="var">10</span>. This will mean that the particles of the particle group <span class="var">group</span> will get detached at a randomized cutoff point between <span class="var">20</span> (<span class="var">cutoff</span>) and <span class="var">30</span> (<span class="var">cutoff + random</span>).<br><br>
+    <h4>The tether type</h4>
+    Now we’ll talk about the <span class="var">tetherType</span> component field of <span class="var">attach</span>. The <span class="var">tetherType</span> controls the way in which the tether of a particle works. As was explained in the airplane analogy, tethered particles inherit their motion from the moveable to which they are tethered to. However, the intricate details of how the motion is inherited depends on this <span class="var">tetherType</span> setting. There are three <span class="var">TETHER_</span> constants, corresponding to the 3 possible options:<br><br>
+    <table cellpadding = "15" cellspacing = "15" class="tab">
+      <caption>Tether type constants</caption>
+      <tr>
+        <th><strong>Numeric Index</strong></th>
+        <th><strong>TETHER_ Constant</strong></th>
+        <th><strong>Description</strong></th>
+      </tr>
+      <tr>
+        <td><span class="var">0</span></td>
+        <td><span class="var">TETHER_ROTATING</span></td>
+        <td>The coordinate system of particles factors in the rotational motion of a given moveable / mesh, along with the position. <strong>This is the default tethering mode.</strong></td>
+      </tr>
+      <tr>
+        <td><span class="var">1</span></td>
+        <td><span class="var">TETHER_STATIC</span></td>
+        <td>The coordinate system of particles ignores the rotations of a moveable / mesh, only the changes to the moveable / mesh position are respected.</td>
+      </tr>
+      <tr>
+        <td><span class="var">2</span></td>
+        <td><span class="var">TETHER_NONE</span></td>
+        <td>This mode effectively makes the particles behave as if they were detached, following the global coordinate system. In spite of this, it keeps track of the moveable (<span class="var">emitterIndex</span>) / mesh (<span class="var">emitterNode</span>) until reaching the cutoff point.</td>
+      </tr>
+    </table><br><br>
+    The <span class="var">TETHER_ROTATING</span> and the <span class="var">TETHER_STATIC</span> tether types differ in how the moveable to which the particles are tethered affects the coordinate system of the particle. A rotating tether respects the rotation of the moveable, meaning if the moveable, or any of its meshes, rotate during animations or otherwise, the particle’s frame of reference rotates along with the moveable or mesh, on top of being displaced by the changes in the moveable’s position. The static tether disregards the rotation effects and only respects the changes in position. These tether effects are quite difficult to explain and even demonstrate outside of the game itself, so my only suggestion is to try both of them out and observe the difference yourself.<br><br>
+    The <span class="var">TETHER_NONE</span> is unique in that there is no effect on the frame of reference, the particle will still follow the global coordinate system (and the position is no longer relative to the moveable in any way). Regardless, the particle does not lose reference to the <span class="var">emitterIndex</span> moveable, at least not until the cutoff point is reached. This results in the “tether” between the particle and the <span class="var">emitterIndex</span> to become a more abstract concept. This even allows to invert the tethering relationship between the particle and the moveable, where the particle itself, through an update function, moves the moveable item around. Admittedly, though, this is a very niche scenario with few applications.<br><br>
+    <h4>Manually tethering and untethering particles with particle function</h4>
+    I want to conclude this section by signifying that there are special particle functions which allow you to manually detach (untether) and (re)attach particles to moveables. These are the <span class="var">particleDetach()</span> function, which untethers the given particle, and <span class="var">particleAttach()</span>, which allows to tether (attach) a particle onto a moveable. Remember, even if the particle group has a rotating or static tether type and a cutoff set to <span class="var">NO_CUTOFF</span>, the particles belonging to the group will not be attached to any moveable if no <span class="var">part.emitterIndex</span> is given (because it is set to <span class="var">-1</span> by default). This allows particles, initially untethered, to attach themselves to a moveable at a later stage in life, or start attached to one moveable and attach to another moveable later.<br><br>
+    An example usage for this could be making a napalm flamethrower weapon. The burning “napalm” particles, upon colliding with an enemy or Lara, can be manually attached to the moveable in the update function, sticking to and following the moveable. However, this is a very advanced feature of the tethering system for highly specific cases. You can read up more on both <span class="var">particleAttach()</span> and <span class="var">particleDetach()</span> functions in the scripting reference on built-in functions.<br>
+    <hr>
+    All the fields and settings of groups described up to this point were applicable to both types of particles (sprite and mesh). The fields that will be described below, however, are unique to sprite particles. You could set them on a group that deals with mesh particles, but it will simply have no effect.
+    <hr>
+    <a name="id6"><h3>Blending modes</h3></a>
+    Remember when I quickly alluded to <a href="Chapter1.html#blend">different blending modes</a> when we talked about sprite particle colors back in Chapter 1? Time to finally talk about it!<br><br>
+    The blending modes are a particle group setting, accessed by the <span class="var">blendMode</span> field. The values you can use here are numeric indices of the blending modes used internally by the Tomb4 engine. These are also the blending mode numbers used in the FLEP <strong>Smoke emitter white OCB setting</strong> patches and correspond to the <strong>New blending modes</strong> patch, adding extra blending modes. However, since it can be difficult to memorize which numeric index corresponds to which blending mode, the plugin has implemented <span class="var">BLEND_</span> constants to be used in the scripts, which give the same value as the blending mode numeric index. Below is a table listing the indices of the available blending modes, the BLEND_ constants used in scripts and the description of the blending mode. Note that to be able to use all of these modes, starting from 5 onwards, you <u>must</u> have the <strong>New blending modes</strong> FLEP patch enabled.<br><br>
+    <table cellpadding = "15" cellspacing = "15" class="tab">
+      <caption>Blending modes list</caption>
+      <tr>
+        <th><strong>Numeric Index</strong></th>
+        <th><strong>BLEND_ Constant</strong></th>
+        <th><strong>Description</strong></th>
+      </tr>
+      <tr>
+        <td><span class="var">0</span></td>
+        <td><span class="var">BLEND_TEXTURE</span></td>
+        <td>Opaque. No transparency allowed, magenta (255, 0, 255) turns to black(0,0,0).</td>
+      </tr>
+      <tr>
+        <td><span class="var">1</span></td>
+        <td><span class="var">BLEND_DECAL</span></td>
+        <td>Opaque. Magenta(255, 0, 255) is transparent, other colors rendered as-is.</td>
+      </tr>
+      <tr>
+        <td><span class="var">2</span></td>
+        <td><span class="var">BLEND_COLORADD</span></td>
+        <td>Transparent additive blending. Pure black(0,0,0) is invisible. <strong>This is the default blending mode.</strong></td>
+      </tr>
+      <tr>
+        <td><span class="var">3</span></td>
+        <td><span class="var">BLEND_SEMITRANS</span></td>
+        <td>Opaque. Pure black(0,0,0) and magenta(255, 255, 255) are invisible. Anything 3D geometry “behind” the sprite gets “covered” by the texture, leaving just the silhouettes visible.</td>
+      </tr>
+      <tr>
+        <td><span class="var">4</span></td>
+        <td><span class="var">BLEND_NOZBUFFER</span></td>
+        <td>Like <span class="var">BLEND_DECAL</span> but ignores the Z-depth buffer, meaning particles get rendered even if they are hidden “behind” geometry.</td>
+      </tr>
+      <tr>
+        <td><span class="var">5</span></td>
+        <td><span class="var">BLEND_COLORSUB</span></td>
+        <td>Transparent subtractive blending. Source inversion, meaning that sprite colors are inverted (bright becomes dark). Pure black(0,0,0) is transparent.</td>
+      </tr>
+      <tr>
+        <td><span class="var">6</span></td>
+        <td>none</td>
+        <td>Reserved for drawing line particles, do not use.</td>
+      </tr>
+      <tr>
+        <td><span class="var">7</span></td>
+        <td><span class="var">BLEND_SEMITRANS_ZBUFFER</span></td>
+        <td>Opaque. More research needed.</td>
+      </tr>
+      <tr>
+        <td><span class="var">8</span></td>
+        <td><span class="var">BLEND_DESTINATION_INV</span></td>
+        <td>Transparent. Destination inversion, meaning that colors “behind” the sprite are inverted (bright becomes dark). Pure black (0,0,0) is transparent.</td>
+      </tr>
+      <tr>
+        <td><span class="var">9</span></td>
+        <td><span class="var">BLEND_SCREEN_DARKEN</span></td>
+        <td>Transparent. Screen darken.</td>
+      </tr>
+      <tr>
+        <td><span class="var">10</span></td>
+        <td><span class="var">BLEND_SCREEN_CLEAR</span></td>
+        <td>Transparent. Screen clear.</td>
+      </tr>
+      <tr>
+        <td><span class="var">11</span></td>
+        <td><span class="var">BLEND_CUSTOM_11</span></td>
+        <td>Custom mode 11 (see <strong>New blending modes</strong> FLEP patch).</td>
+      </tr>
+      <tr>
+        <td><span class="var">12</span></td>
+        <td><span class="var">BLEND_CUSTOM_12</span></td>
+        <td>Custom mode 12 (see <strong>New blending modes</strong> FLEP patch).</td>
+      </tr>
+      <tr>
+        <td><span class="var">13</span></td>
+        <td><span class="var">BLEND_CUSTOM_13</span></td>
+        <td>Custom mode 13 (see <strong>New blending modes</strong> FLEP patch).</td>
+      </tr>
+    </table><br><br>
+    Each blending mode has unique interactions with the source (the sprite texture) and the destination (the background behind the sprite). Some of these blending modes are more useful than others. If you have the knowledge to do so, can also set custom blending modes: 11, 12, and 13, via the <strong>New blending modes</strong> FLEP patch.<br><br>
+    Finally, blending modes are only applicable to sprite particles. On mesh particles, they have no effect.<br>
+    <hr>
+    <a name="id7"><h3>Drawing modes</h3></a>
+    Aside from blending modes for sprites, we also have drawing modes. Drawing modes determine what the renderer should draw, given the input. You might say – <i>“Well, these are sprite particles, so it should draw sprites!”</i> – and I agree. However, you may remember, in the Tomb4 there is a specific kind of particle – a thin line streak, oriented in the direction the particle is travelling in, optionally with a color. You see this subtype of particle with water drips when Lara gets out of water, rain drops, ricochets on walls when firing guns, and perhaps other examples I am forgetting about. These are <strong>line particles</strong> and apart from the slightly different rendering approach, the engine treats them identically to ordinary sprite particles.<br><br>
+    We could not skip out on making these line particles available for the particle plugin as well. How do you access them? By setting the appropriate <strong>draw mode</strong> for the particle group!<br><br>
+    There are 5 draw modes currently available in the plugin. Similarly to blending modes, they are numeric indices but come with handy <span class="var">DRAW_</span> constants for convenience. They are listed in the table below:<br><br>
+    <table cellpadding = "15" cellspacing = "15" class="tab">
+      <caption>Drawing modes list</caption>
+      <tr>
+        <th><strong>Numeric Index</strong></th>
+        <th><strong>DRAW_ Constant</strong></th>
+        <th><strong>Description</strong></th>
+      </tr>
+      <tr>
+        <td><span class="var">0</span></td>
+        <td><span class="var">DRAW_SPRITE</span></td>
+        <td>Draws the sprite with the texture given by <span class="var">part.spriteIndex</span>. <strong>This is the default drawing mode.</strong></td>
+      </tr>
+      <tr>
+        <td><span class="var">1</span></td>
+        <td><span class="var">DRAW_SQUARE</span></td>
+        <td>Ignores the <span class="var">part.spriteIndex</span> texture, drawing just a blank square / rectangle.</td>
+      </tr>
+      <tr>
+        <td><span class="var">2</span></td>
+        <td><span class="var">DRAW_LINE</span></td>
+        <td>Draws a thin line streak in place of a square. The length of the streak depends on the velocity vector and size of the particle.</td>
+      </tr>
+      <tr>
+        <td><span class="var">3</span></td>
+        <td><span class="var">DRAW_ARROW</span></td>
+        <td>Similar to DRAW_LINE but adds an arrowhead in the direction the particle is moving in.</td>
+      </tr>
+      <tr>
+        <td><span class="var">4</span></td>
+        <td><span class="var">DRAW_NONE</span></td>
+        <td>Does not render the particle (but it still remains active e.g. for the update function).</td>
+      </tr>
+    </table><br><br>
+    We see that we have some interesting entries in the table. They can be grouped into three general categories based on similarities.<br><br>
+    <h4>DRAW_SPRITE and DRAW_SQUARE</h4>
+    <span class="var">DRAW_SPRITE</span> and <span class="var">DRAW_SQUARE</span> both draw the particle square/rectangle, respecting the blending mode set for the particle. <span class="var">DRAW_SPRITE</span> also uses the texture indicated by the part’s <span class="var">spriteIndex</span>, whereas <span class="var">DRAW_SQUARE</span> ignores it, leaving the square blank.<br><br>
+    <h4>DRAW_LINE and DRAW_ARROW</h4>
+    <span class="var">DRAW_LINE</span> and <span class="var">DRAW_ARROW</span> work differently, in that a line segment is drawn between the current <span class="var">pos</span> vector of the particle and a projection away from the <span class="var">pos</span> vector by a fraction of a the <span class="var">vel</span> vector. Perhaps this does not immediately make sense, but in layman’s terms, this means that the position of the line segment depends on the <span class="var">part.pos</span> vector, while the length of this segment depends on the particle’s current velocity and current size (either the blended size between <span class="var">sizeStart</span> and <span class="var">sizeEnd</span> or the overridden <span class="var">sizeCust</span>). I’ve made a little interactive demo of this idea, which will perhaps get the meaning across better than any explanations I could come up with.<br><br>
+    Anyway, the implication of this is that line particles will not get drawn if the velocity is 0 (that is, each <span class="var">x y z</span> component is 0), even if the size is huge. There is an exception to this, however. There is a boolean field of groups, called <span class="var">lineIgnoreVel</span>. If this field is set to <span class="var">true</span>, the lines are instructed to ignore the velocity contributing to the length of the line segment.
+    <div class="code">
+      group.lineIgnoreVel = true
+    </div>
+    In this case, the length of the line segment will be determined exclusively from the current size of the particle.<br><br>
+    Line particles ignore the <span class="var">spriteIndex</span>, <span class="var">sizeRatio</span>, <span class="var">rot</span> and <span class="var">rotVel</span> sprite particle fields. Additionally, they ignore the blending mode setting, as there is a single, reserved blending mode for line particles, which is always additive color blending (i.e. pure black(0,0,0) is transparent).<br><br>
+    <h4>DRAW_NONE</h4>
+    Perhaps you have read the description of this draw mode and consider it pointless. What is the purpose of going through the trouble of defining a particle group, then giving it the <span class="var">DRAW_NONE</span> drawing mode, if such particles are not rendered at all? It seems redundant, either you have the particles drawn or don’t bother, right? However, I want to convince you now that these “invisi-particles”, as I like to call them, can be useful.<br><br>
+    If we strip away all graphical qualities of a particle, what are we left with? We have the base properties of the particle: the <span class="var">pos</span>, <span class="var">vel</span>, <span class="var">accel</span> vectors, the <span class="var">lifeSpan</span> and <span class="var">lifeCounter</span>. On top of that, we also have an init function and update function tied to the particle group of said particles.
+    We thus have an entity with a duration (lifetime), position, potentially a velocity and acceleration too. We can determine how this entity spawns by the init function, and control what it does with the update function. These “invisi-particles” are not rendered themselves, but thanks to having a position and velocity, can become a moving “canvas” for other, subsidiary effects taking place via the update function. This canvas can also be attached to specific entities, via the tethering system. This invisi-particle has a limited duration, dying after a certain amount of time. Because you can still do anything non-graphical with the particle in the update function, it can work as a “pilot” that carries other effects with it. Or to put things in TRNG terms, it can work as a localized, travelling Organizer, which you control via the update function.<br><br>
+    A practical example of this, which will be shown later, is having an invisi-particle attached to a baddy via the <span class="var">part.emitterIndex</span>, with its update function triggering child particles with the flame sprite to appear on the baddy’s meshes at random, all while decrementing the hitpoints of the enemy. This will cause the enemy to burn and evetually, die, just like Lara does! Hopefully, this shows you some of the potential that “invisi-particles” can have, if you view them as localized entities under scripting control.<br>
+    <hr>
+    <a name="id8"><h3>Sprite slot</h3></a>
+    Sprite particles, by default, take their sprites from... well... the <strong>DEFAULT_SPRITES</strong> slot. It’s possible to add custom sprite textures beyond the default 33 textures present in the unmodified <strong>DEFAULT_SPRITES</strong> object, but perhaps you would prefer to store your custom sprite textures in a separate sprite slot, while keeping the original <strong>DEFAULT_SPRITES</strong> intact (or to separate these textures in a meaningful way). You can use two other sprite slots for sprite particles, the <strong>MISC_SPRITES</strong> slot and also the <strong>CUSTOM_SPRITES</strong> slot added by TRNG (<strong>NG custom sprites</strong>, as they are labeled in the Tomb Editor toolset). You can even use all three slots at once in a single WAD, but only one of them can be assigned per each particle group.<br><br>
+    To change which of these slots the sprite particles will take textures from, you must change the slot ID on the particle group via the <span class="var">spriteSlot</span> field. The only acceptable values for this field are <span class="var">463</span> for <strong>DEFAULT_SPRITES</strong>, <span class="var">464</span> for <strong>MISC_SPRITES</strong> and <span class="var">494</span> for <strong>CUSTOM_SPRITES</strong>. However, you do not have to memorize these IDs, you may also use the corresponding <span class="var">SLOT_</span> constants instead of the numerical indices:
+    <div class="code">
+      group.spriteSlot = SLOT_MISC_SPRITES <span class="com">-- sets 464 for the MISC_SPRITES slot</span>
+    </div>
+    Using, non-sprite slot indices (e.g. 455 or <strong>SLOT_ANIMATING15</strong>) will set <span class="var">spriteSlot</span> back to the <strong>SLOT_DEFAULT_SPRITES</strong> value, with a logger warning.<br><br>
+    The protective measures for the <span class="var">part.spriteIndex</span> field exist for all 3 sprite slots, meaning that it is impossible for the <span class="var">spriteIndex</span> go above the maximum index of sprite texture in a given sprite slot. Attempting to go past the maximum index will clamp the value and give the appropriate warning in the logger. The chosen sprite slot must possess at least 1 sprite texture (seems self-evident, but noting it just in case).<br>
+    <hr>
+  </body>
+</html>

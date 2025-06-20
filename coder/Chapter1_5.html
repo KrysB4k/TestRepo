@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+    <title>1.5 – Init functions, continued</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <script src="copycode.js"></script>
+    <h1>Init functions, continued</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter1.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter2.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+    <br>
+    In the previous half of Chapter 1, we have talked about the possiblities of init functions, which already gave us plenty of options for scripting particle effects.<br><br>
+    In this second half of the chapter, we will learn how to change the spawn rates of particles, then go over some remaining sprite particle fields we have not covered yet, such as the emitter index and emitter node, acceleration vector, size ratio factor and color fading time. In particular, we will examine how you can use the <span class="var">emitterIndex</span> and <span class="var">emitterNode</span> fields to mimic the AddEffect feature known from TRNG, but with fully customizable effects, created by you.<br><br>
+    The end of this chapter hosts an optional bonus section that showcases some neat tricks made possible with a bit of math to generate various spatial arrangements and spawning patterns for particles. This last section is mainly for those readers who have a knack for mathematics, so if you are not very interested in topics of 2D and 3D geometry or parametric equations, feel free to skip it and head directly to the next chapter.
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Changing particle spawn rates</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Particles emitted from objects</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Particle emitter nodes</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Particle acceleration</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Particle size ratio factor</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id6">6. Particle color fading time</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id7">7. Bonus: Geometric spawning formations</a>
+    </strong><br>
+    <hr>
+    <a name="id1"><h3>Changing particle spawn rates</h3></a>
+    <i>Note: this section is a tad more challenging and may take some resilience to get through it. However, I strongly believe the payoff with what you learn thanks to it makes this worth it, don’t skip this one!</i><br><br>
+    Though this is also a subjective matter, I think the way our dust particles spawn at the moment is a bit too “concentrated”. Perhaps the particles should be spread out more, to cover a larger area (you may disagree with me, like I said it’s subjective). Regardless if you agree or not, I will tell you about the ways to modify the particle density and spawn rate, for when it becomes necessary.<br><br>
+    We can do one of the following, or both:
+    <ul>
+      <li>spread out the dimensions of the volume in which particles can spawn (by increasing the random range of the position randomizing variables <span class="var">dx</span>, <span class="var">dy</span>, <span class="var">dz</span> in our script);
+      <li>make the particles spawn less frequently (i.e. not on every frame).
+    </ul><br>
+    <h4>Spreading out the spawn dimensions</h4>
+    The first point should seem rather straightforward, we can do that by increasing the range of the <span class="var"> dx, dy, dz</span> variables for generating the random numbers we add to the position vector. To make the particles cover a larger area, we simply change the min-max range in the <span class="var">randfloat()</span> calls. Let’s try increasing it to (-1024, 1024) for <span class="var">dx</span> and <span class="var">dz</span>, making the effective volume a box of dimensions 2048 x 1024 x 2048.
+    <div class="code">
+      local dx = randfloat(-1024, 1024) <span class="com">-- 2048 total</span><br>
+      local dy = randfloat(-512, 512) <span class="com">-- 1024 total</span><br>
+      local dz = randfloat(-1024, 1024) <span class="com">-- 2048 total</span>
+    </div>
+    Easy-peasy. Now, the same amount of particles spawns as before (1 per frame), but the volume in which they spawn became bigger. Hence, there is a smaller average density of particles per unit of space.<br><br><br>
+    The second point is not so trivial – how could we make particles spawn less often? As we know the init function is being called once a frame, after all.<br>
+    Though it’s true that the init function will be called once per frame (generally speaking, there is a specific particle group setting which prevents it), I never said it necessarily must spawn a particle on each of those frames, did I?<br><br>
+    Recall the <strong>Lua Crash Course</strong> section on <a href="LuaManual.html#if">if conditions</a>. You will greatly benefit from refreshing this knowledge, if you are not up to speed with that aspect of Lua.<br><br>
+    <h4>Probability-based spawn rates</h4>
+    Random number functions can also be used for determining probabilistic outcomes. Specifically, I’m referring to <span class="var">randint()</span> for this purpose. What would happen if we spawned a new particle, but <u>only</u> under the condition that the result of <span class="var">randint(1, 6)</span> was equal to 3, for example? We would get a 1 in 6 chance of the particle spawning a given frame, the same as with rolling out a 3 on a die (“die” here being the singular form of “dice”). Or perhaps <span class="var">randint(1, 2)</span> being equal to 1, as with a coin flip (“heads” or “tails”) that resulted in “heads”. To make room for this element of chance, we must make some small alterations to the code around spawning the particle.<br><br>
+    The main idea is to have a variable to which we assign a random integer in a range, for example 1 through 6. We’ll give it the descriptive name <span class="var">dice</span>. To this variable we assign the result of <span class="var">randint(1, 6)</span>, which will be our random integer between 1 and 6.
+    <div class="code">
+      local dice = randint(1, 6)
+    </div>
+    I will proceed to describe how we can construct our if conditional statement around the <span class="var">dice</span> variable. There are in fact two ways of reasoning about it, both leading to the same outcome.
+    First of all, we should establish the condition – when should our particle spawn? Whenever we “roll out” a 1 with <span class="var">dice</span>, for instance. It wouldn’t matter if we chose 2, 3, 4, 5 or 6 instead, since there should be an equal probability that we get any of these six outcomes, if the die is fair.
+    As for the two ways of writing the if condition, we can perceive it from two complimentary perspectives:
+    <ul>
+      <li>we want to spawn the particle only if the value of <span class="var">dice</span> is 1 (<span class="var">dice == 1</span>)
+      <li>we want to skip further execution of the function (which includes spawning the particle) if the value of <span class="var">dice</span> is greater than 1 (<span class="var">dice > 1</span>).
+    </ul>
+    I hope it makes sense to you how both of these viewpoints effectively lead to the same outcome and are equivalent to each other.<br>
+    Let’s analyze setting up the if condition by following the sentiment of the first perspective. We need the <span class="var">if</span> keyword to begin the conditional statement. Next we describe the condition: <span class="var">dice == 1</span>. At the end of the line, we put <span class="var">then</span>:
+    <div class="code">
+      local function dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dice = randint(1, 6)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if dice == 1 then <span class="com">-- if we rolled out a 1</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgroup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- remaining init code --</span><br><br>
+      end
+    </div><br>
+    What follows after the <span class="var">then</span> keyword becomes a code block belonging to the if statement, up until first encountered <span class="var">end</span> keyword is reached. We would now need to place everything related to spawning the particle (creating the new particle instance and initializing the fields) inside the code block of the if condition. Now, there is a very lazy way to do this, which involves simply placing an extra <span class="var">end</span> keyword before the <span class="var">end</span> that terminates the <span class="var">dustInit()</span> function. Remember, Lua does not care about whitespaces (unlike the Python programming language, for instance), it only cares that the code-block is somewhere between the <span class="var">then</span> and <span class="var">end</span> keywords:
+    <div class="code">
+      local function dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dice = randint(1, 6)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if dice == 1 then <span class="com">-- if we rolled out a 1</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgroup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- remaining init code --</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;end <span class="com">-- end terminating if code block</span><br>
+      end <span class="com">-- end terminating dustInit() function</span>
+    </div><br>
+    However, on top of this being lazy (which I do not mind at all), I consider it quite ugly and unintelligble (which I do mind, actually). On the other hand, making this code more readable would require adding a lot of whitespace indentation to several lines, which I don’t want to do, either. Which will prevail, tidyness or laziness?<br><br>
+    <a name="newfunc"></a>I have a smarter solution that will leave <span class="var">dustInit()</span> itself intact (requiring no changes), but that still allows us to change how frequently the particle gets spawned. Let’s add a completely new function <u>below</u> <span class="var">dustInit()</span>. We can name it something like <span class="var">dustInit_chance()</span> (or whatever tickles your fancy):
+    <div class="code">
+      local function dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dice = randint(1, 6)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if dice == 1 then <span class="com">-- if we rolled out a 1</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgrpup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- remaining init code --</span><br><br>
+      end<br><br>
+      local function dustInit_chance() <span class="com">-- our new function</span><br>
+      end
+    </div>
+    We will move the <span class="var">dice</span> variable and if condition from <span class="var">dustInit()</span> into this new function, then remove it from the old function, reverting it to its original state:
+    <div class="code">
+      local function dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgroup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- remaining init code --</span><br><br>
+      end<br><br>
+      local function dustInit_chance()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dice = randint(1, 6)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if dice == 1 then <span class="com">-- if we rolled out a 1</span><br>
+      end
+    </div>
+    In the if condition block that’s now inside <span class="var">dustInit_chance()</span>, we call our original <span class="var">dustInit()</span> function from above. Then we terminate the if condition block with the <span class="var">end</span> keyword:
+    <div class="code">
+      local function dustInit_chance()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dice = randint(1, 6)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if dice == 1 then <span class="com">-- if we rolled out a 1</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dustInit() <span class="com">-- call our original init function</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;end<br>
+      end
+    </div>
+    One last thing needed to make this work is to replace the <span class="var">dustInit</span> function in <span class="var">createGroup(dustInit, nil)</span> with our new <span class="var">dustInit_chance</span> function.
+    <div class="code">
+      dustgroup = createGroup(dustInit_chance, nil) <span class="com">-- swapping out original dustInit function with dustInit_chance</span>
+    </div>
+    Now all that’s left is to try it out in-game.<br><br>
+    The spawn rate of the particles has definitely gone down. A bit too much, perhaps. Back in our <span class="var">dustInit_chance()</span>, we can decrease the <span class="var">randint()</span> range on <span class="var">dice</span> from (1, 6) to (1, 2). This should now result in a 50/50 likelyhood of spawning the particle. If we really want to, we can also change the name of the variable to <span class="var">coin</span> to reflect that.
+    <div class="code">
+      local function dustInit_chance()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local coin = randint(1, 2)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if coin == 1 then <span class="com">-- if we got "heads" on the coin</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dustInit() <span class="com">-- call our original init function</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;end<br>
+      end
+    </div>
+    Nice, that’s closer to what I had in mind.<br><br>
+    This method of checking a randomly generated integer is based on probability. It results in an average spawn rate of about 1 particle per 6 frames for the “dice” probability (or 1 particle in 2 frames for the “coin” probability). This is only true when averaged out over a certain period of time, though. In one exact moment, it’s not possible to determine if we get a particle to spawn or not. There’s a very small, but still possible chance to get 8 frames with spawned particles in a row or no particles for 10 consecutive frames, even if the probability suggests an equal outcome. Such sequences, though rare and tend to average out in the long run, are unavoidable with statistical probabilities, where events occur only with chance.<br><br>
+    <a name="interval"><h4>Interval-based spawn rates</h4></a>
+    What if we do not want such probabilistic outcomes based on chance? Is there way to make an event occur with a consistent, precise interval, e.g. where we are guaranteed to get <u>exactly</u> 1 particle spawned every 15 frames? Yes, this can also be accomplished.<br><br>
+    One way to do it is by using an API function called <span class="var">getGameTick()</span>. This function does not accept any arguments and returns the number of game ticks (frames) that have elapsed in-game since starting the current level (reminder that the TRLE engine runs at a constant 30 fps, so 1 second passes every increment of 30 game ticks). The tick counter doesn’t go up while in the inventory or pause screens. It resets to 0 when a new level is loaded and starts counting up again. It’s also saved in save games and reverted back to the saved value after reloading. Effectively, it behaves like a “clock” that measures how much game ticks passed since starting the current level. Whenever we want something in an effect to depend on the passage of time, we can reliably use the <span class="var">getGameTick()</span> function. Right now, we can use it for spawning particles in a rigid interval.<br><br>
+    The <span class="var">getGameTick()</span> will return the elapsed number of ticks since the level began. But that alone will not get us where we want. We still have to do something with that value, which will result in a particle spawning once every certain number of frames. Let’s a look at the table of available <a href="LuaManual.html#arith">arithmetic operators</a> for a moment. We are looking for an operator that can return the remainder of dividing one number by another. The modulo operator <span class="var">%</span> seems to fit the description, right?<br><br>
+    The idea here is rather simple, we perform a remainder (or modulo) on the value returned by <span class="var">getGameTick()</span>, where the dividend (the number to the right of the modulo operator) is the desired spawn interval, in frames.<br><br>
+    We will adapt our existing <span class="var">dustInit_chance()</span> function, making certain changes to it. We may rename our <span class="var">dice</span> / <span class="var">coin</span> variable to <span class="var">tick</span>. Let’s go for a spawn interval of 1 particle per 15 frames, or one every half-second (since there are 30 frames to a second in this engine). We make the following changes:
+    <div class="code">
+      local function dustInit_chance()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- take the tick counter value and get remainder from division by 15 (our interval)</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local tick = getGameTick() % 15<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if tick == 0 then <span class="com">-- on every 15th frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dustInit() <span class="com">-- call our original init function</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;end<br>
+      end
+    </div>
+    If you are unsure of what the modulo operation is doing, it will return the remainder (the “leftover”) of dividing the game tick counter by 15. This remainder is a value between 0 and 14 (inclusive) and it gets assigned to <span class="var">tick</span>. When we check if <span class="var">tick</span> is equal to a specific value in the range of the remainder, such as 0, this condition will be true exactly once every 15 ticks.<br><br>
+    After running the level, we see that the particle is indeed spawned precisely every 15 frames, or once per half-second. You can easily get any other interval, all you need to do is change the integer to the right of the modulo operator.<br><br>
+    <h4>The interval() function</h4>
+    There is an even easier way to spawn a particle on every <span class="var">Nth</span> frame. It is an API function named <span class="var">interval()</span>, the purpose of which is precisely to do some action once every given number of ticks. The function takes a mandatory first argument, the number of ticks in the interval. This has to be a positive integer (which makes perfect sense, an interval must be at least 1 frame long). The function returs a boolean value, <span class="var">true</span> if the current game tick is divisible by the first integer given to <span class="var">interval()</span> (e.g. if we use 15, it will be true on the 0 tick (immediately after launching the level) and then every 15th tick). In any other case, the returned boolean is <span class="var">false</span>. With <span class="var">interval()</span>, we can convert the code of <span class="var">dustInit_chance()</span> to the following:
+    <div class="code">
+      local function dustInit_chance()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;if interval(15) then <span class="com">-- on every 15th frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dustInit() <span class="com">-- call our original init function</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;end<br>
+      end
+    </div>
+    And the result will be identical to the previous version with <span class="var">getGameTick()</span> and the modulo operator, just sparing us a couple steps.<br><br>
+    The <span class="var">interval()</span> function can also take an optional second argument. Also an integer, but in the range between 0 and the first interval argument. This second argument serves to offset the tick timer by the given number of ticks. Effectively, this allows to delay the interval check by the specified number of frames. Going with our example again, if we use <span class="var">interval(15, 1)</span>, the interval function will return <span class="var">true</span> 1 tick later than <span class="var">interval(15)</span> or the equivalent <span class="var">interval(15, 0)</span>. Likewise, <span class="var">interval(15, 5)</span> returns <span class="var">true</span> 5 ticks later, <span class="var">interval(15, 10)</span> returns <span class="var">true</span> 10 ticks later, and so on. This can be useful to set up a sequence, where in a given interval, you trigger something on the 1st, 5th, 9th and 14th frame, in sequence:
+    <div class="code">
+      if interval(15, 1) then <span class="com">-- on 1st frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- do 1st thing</span><br>
+      elseif interval(15, 5) then <span class="com">-- on 5th frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- do 2nd thing</span><br>
+      elseif interval(15, 9) then <span class="com">-- on 9th frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- do 3rd thing</span><br>
+      elseif interval(15, 14) then <span class="com">-- on 14th frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- do 4th thing</span><br>
+      end
+    </div>
+    And such a sequence repeats itself every 15 frames, according to the first number in the <span class="var">interval()</span> function call.<br><br>
+    <h4>Spawning multiple particles per frame</h4>
+    To make our life easier for limiting particle spawn rate, we have written a “master” function, <span class="var">dustInit_chance()</span>, which decides when to spawn a dust particle and calls the original <span class="var">dustInit()</span> function to spawn one. Meanwhile, the only job of <span class="var">dustInit()</span> is to spawn and initialize a single new particle of the dust group. This method of distributing one job per function is a stellar approach, indicative of well-written code. This is because you can easily tell what each function is responsible for, when you know it only has a single job (also naming your functions appropriately with their performed tasks massively helps with this). On the contrary, if we squeeze everything together into one big function, it obscures the whole picture and you would have to remember this “monster” function does many jobs, some of which are not really related to the name of the function.<br><br>
+    Of course, we had a rather trivial example here. In programming practice, this one-job-only rule isn’t something that can always be enforced reliably, there are always edge cases and uncertainties of what constitutes a “single job”. As a general guideline, though, you should prefer to write each function with (ideally) one task in mind. If the task consists of several smaller tasks, you isolate the tasks into smaller functions and call them each from the bigger function (within reason, of course). This results in cleaner and more elegant code. As a reminder, functions exist specifically to reduce repetition and help to code things more efficiently.<br><br>
+    <a name="multispawn"></a>Anyway, once we have realized that the <span class="var">dustInit()</span> function is an executable unit that spawns a single dust particle on demand, it’s trivial to modify <span class="var">dustInit_chance()</span> again, this time to spawn several particles per frame. You simply call <span class="var">dustInit()</span> however many times is required inside the master <span class="var">dustInit_chance()</span>. Should you need to spawn particles in the tens, hundreds, or in some randomized amount, preferably use <a href="LuaManual.html#loops">for loops</a>. For just 3 particles, repeating the function call three times in a row is hardly the worst thing in the world.
+    <div class="code">
+      local function dustInit_chance()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- spawn 3 dust particles per frame</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;dustInit()<br>
+      end
+    </div>
+    And that’s all there is to it. We can see the clear benefit from modularizing code into functions that each perform a single task. This way, you may use that one function several times in different places, instead of copy-pasting and adapting the same code snippet over and over. This becomes even more apparent when the particles must be spawned in bursts, batches, in a particular time pattern or under highly specific conditions.<br><br>
+    Okay, time for a moment of honesty. The original spawn rate of 1 particle per frame did not bother me at all. This whole section was just my cunning, evil trickery to explain how you can modify the particle spawn rates! <i><strong style="color: red">Muahahahaha!</strong></i><br><br>
+    Nonetheless, I hope that after working through all these examples, you know how you can decrease or increase the frequency of not only particle spawning, but any kind of event. Both the probability-based and interval-based approach will be making an appearance again in later chapters, but we will really be needing it then (really, I promise)!<br><br>
+    You can keep using the <span class="var">dustInit_chance()</span> function if you indeed want a modified spawn rate of the dust particles, otherwise we can just restore the good old <span class="var">dustInit</span> in the call to <span class="var">createGroup()</span>.
+    <div class="code">
+      dustgroup = createGroup(dustInit, nil) <span class="com">-- restoring the original dustInit function</span>
+    </div>
+    <hr>
+    <a name="id2"><h3>Particles emitted from objects</h3></a>
+    When we were giving our particles <a href="Chapter1.html#id6">a position</a> back in the first half of Chapter 1, we grabbed the absolute coordinates of Lara from some spot in the level. You might agree this is a rather tedious, mundane process. Specifying position this way is not very flexible, either. What if we want to change the position of the effect?
+    Do we keep grabbing new coordinates with Lara in DOZY mode? Or what if we want to spawn our dust particles in a second spot, do we need to replicate the <span class="var">dustInit()</span> function, but with changed XYZ coordinates?<br><br>
+    No, this would be a ridiculously tedious thing to do whenever we want to place the same effect somewhere else in the level.<br><br>
+    If you are familiar with how FLEP smoke emitters work, you are aware that they are spawned from placed SMOKE_EMITTER_WHITE and SMOKE_EMITTER_BLACK nullmesh objects, with the particle properties depending on the settings of a given OCB number in the patch. Anyway, this allowed to spawn the particles depending on where the emitter nullmesh was placed, and the nullmesh emitted particles after getting triggered. This emitter system seems more convenient, since it allows you to place the same effect in several spots. It would be awesome if we could have that approach available with our dust particles, wouldn’t it?<br><br>
+    It’s obvious where I’m going with this, so let’s cut to the chase.<br><br>
+    <h4>Relative spawn positions with emitter index</h4>
+    The particles from this plugin have two specific properties / fields that deal with this exact sort of thing, the <span class="var">part.emitterIndex</span> and the <span class="var">part.emitterNode</span>. In this section, I will focus on explaining <span class="var">part.emitterIndex</span> first.<br><br>
+    Specifying an <span class="var">part.emitterIndex</span> in the init function ties the particle’s position to an <strong>emitter item</strong>.<br><br>
+    What is this emitter item, you ask? It can be <strong><u>any</u></strong> moveable object in the level. Yes, you heard me correctly, <u>any moveable item</u> can serve as the particle emitter. It does not have to be a nullmesh, it can be an enemy, it can be a trap, pushblock, pickup or animating. It can even be Lara herself.<br><br>
+    What kind of index does this <span class="var">emitterIndex</span> field expect, though? It is sadly not the NG script index, which was probably your first thought, but rather the internal Tomb4 item index (there are specific reasons for this, Tomb4 indices are more general-purpose). However, do not fret, as the API has a function that resolves this easily. The function <span class="var">getTombIndex()</span> takes an integer value of the NG index for the moveable and converts it to the corresponding Tomb4 item index (if a moveable with the given NG index exists, otherwise it returns <span class="var">-1</span> for an invalid item).<br><br>
+    Differently than other fields, the uninitialized <span class="var">part.emitterIndex</span> field starts out with value <span class="var">-1</span> and not <span class="var">0</span>. This is because 0 is also a valid Tomb4 index that any item in the level could have. If <span class="var">part.emitterIndex</span> has the default <span class="var">-1</span> value, the position coordinates given to the particle are interpreted as global (absolute) coordinates in the level. On the other hand, when it is set to a valid item index in the init function, the particle’s position coordinates will be relative to that item (this is not the whole truth on the matter though, the full picture will be revealed later).<br><br>
+    To illustrate this with a specific example, if the particle has been assigned position coordinates <span class="var">(X= 256, Y= -768, Z= 512)</span>, the particle will be offset by those position coordinates from the emitter item’s current position, e.g. <span class="var">(X= 1024, Y= 0, Z= 2048)</span>. When determining where the particle actually appears, the particle position vector is added to the emitter item’s position: <span class="var">(X= (1024 + 256), Y= (0 - 768), Z= (2048 + 512))</span>. If the <span class="var">part.emitterIndex</span> is not set to a valid index, though, the particle will normally spawn at the global world coordinates <span class="var">(X= 256, Y= -768, Z= 512)</span>.<br><br>
+    This simplifies setting particle positions considerably, as it is enough to specify the <span class="var">emitterIndex</span> and the offsets from the emitter’s position in the particle’s <span class="var">part.pos</span> vector, the particle system will work out the rest. This permits to achieve something similar to FLEP particle emitting nullmeshes. And what’s more, it works for any moveable item, not just SMOKE_EMITTERs. This means you can have enemies or Lara spawning particles into the level, without the need for funny workarounds, like copying the item position to the emitter nullmesh with TRNG scripts. Cool!<br><br>
+    Of course, there is more to the FLEP smoke emitters than simply spawning some particles in the vicinity of the nullmesh. Which particles are spawned is determined by the OCB number of the nullmesh. Also, the FLEP particles spawn only when the emitter nullmesh has been activated by a trigger and thus can be untriggered to deactivate the particles. This is perfectly possible to recreate in the particle system as well, but it’s a topic for the later chapters, where we will delve into getting a moveable item’s properties, such as the OCB or checking its activation status (triggered / untriggered).<br><br>
+    <h4>Using the emitterIndex field</h4>
+    I will signal only the very basics of using <span class="var">part.emitterIndex</span> for now, which is making the particles spawn at a selected object’s position. Let’s say we have an nullmesh item placed somewhere, such as a CAMERA_TARGET (or any other moveable item, for that matter). What must we do to get the dust particles to spawn around it?<br><br>
+    We must get its NG script index value first. In NGLE, this is the number in parentheses ( ) visible when highlighting a placed object. In TE, this is displayed as the ID value in square brackets when an object is selected, e.g. <span class="var">[ID = 12]</span>.
+    <div style="display: flex; justify-content: center; margin-left: auto; margin-right: auto">
+      <img style="margin: 20px" src="ch1_5/ch1_NGLE.jpg">
+      <img style="margin: 20px" src="ch1_5/ch1_TE.jpg">
+    </div>
+    <br>
+    We take this number and pass it as an argument to the <span class="var">getTombIndex()</span> function. We then assign this to the <span class="var">part.emitterIndex</span> field.
+    <div class="code">
+      part.emitterIndex = getTombIndex(12) <span class="com">-- get tomb4 item index of item with NG index 12</span>
+    </div>
+    There is one more thing we should do, which is removing the old coordinates written down from Diagnostics. They are no longer needed, as the particle system calculates the global spawn position by itself when the <span class="var">part.emitterIndex</span> gets specified. We simply assign the random values of <span class="var">dx</span>, <span class="var">dy</span> and <span class="var">dz</span> variables directly to the <span class="var">part.pos</span> vector. Here is how the whole init function will look like:
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local function dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgroup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(12) <span class="com">-- get tomb4 item index of item with NG index 12</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 4 <span class="com">-- 30 frames * 4 = 4 seconds</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = randint(150, 300)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart * 3 <span class="com">-- make dust slowly expand over time</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = randint(130, 150)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(100, 120)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = randint(70, 85)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize position</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dx = randfloat(-1024, 1024)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dy = randfloat(-512, 512)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dz = randfloat(-1024, 1024)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- since we assigned an emitterIndex, the spawn pos is relative to the emitter</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = dx<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = dy<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = dz<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize velocity</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.x = randfloat(-5, 5)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.y = randfloat(-5, 5)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.z = randfloat(-5, 5)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 0 <span class="com">-- "smoke" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 30 <span class="com">-- fade in for 1 second</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30 <span class="com">-- fade out for 1 second</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize rot and rotVel</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local degrees = randint(0, 359)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.rot = degToRad(degrees)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- generate a random float between 2 and 4, negate it half of the time</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rotspeed = randomNegate(randfloat(2, 4))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.rotVel = degToRad(rotspeed)<br>
+      end
+    </div>
+    once we try it out, we should see the dust particles spawn around our chosen object.<br><br><br>
+    As one more little trick, I will show you how to get this particle effect to follow Lara wherever she goes. Yes, we could just write down the NG index of the LARA object from the level map and call <span class="var">getTombIndex()</span> on it, that will work. But specifically for our dear Lara, you don’t need to do this. The API provides the <span class="var">getLaraIndex()</span> function which returns the Tomb4 index of Lara directly, without the need for the <span class="var">getTombIndex()</span> function. All you need to do is make this small change:
+    <div class="code">
+      part.emitterIndex = getLaraIndex() <span class="com">-- get Lara's item index
+    </span></div>
+    We obtain a cloud of dust particles that constantly spawn in Lara’s vicinity based on where she is.<br>
+    <img class="fig" src="ch1_5/ch1_g3.gif"><br><br>
+    <h4>Addendum on the dust effect</h4>
+    Although we had some hiccups at first, we have created a rather decent “dust cloud” in the end. This can be used as-is, or serve as a very good template for creating other modules in the future. For a moment, we are going to set this dust module aside, switching our focus to other topics temporarily.<br><br>
+    Some of you may perhaps be somewhat disappointed, having imagined a different kind of “dust” effect. One that would be more suited for the interior of an old house instead of a desert or ancient tomb. If you’re not content with the one we’ve made together in the previous sections, try this one out, my treat!
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local function dustInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(dustgroup) <span class="com">-- create a sprite particle of the "dust" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getLaraIndex()<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 4 <span class="com">-- 30 frames * 4 = 4 seconds</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = randint(20, 32)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = randint(60, 70)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(50, 60)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = randint(30, 40)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize position</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dx = randfloat(-2048, 2048)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dy = randfloat(-1024, 1024)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local dz = randfloat(-2048, 2048)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = dx<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = dy<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = dz<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize velocity</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.x = randfloat(-3, 3)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.y = randfloat(-3, 3)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.z = randfloat(-3, 3)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 14 <span class="com">-- "dot" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 30 <span class="com">-- fade in for 1 second</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30 <span class="com">-- fade out for 1 second</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- randomize rot and rotVel</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local degrees = randint(0, 359)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.rot = degToRad(degrees)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- generate a random float between 2 and 4, negate it half of the time</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rotspeed = randomNegate(randfloat(2, 4))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.rotVel = degToRad(rotspeed)<br>
+      end
+    </div>
+    <img class="fig" src="ch1_5/ch1_g4.gif"><br><br>
+    This is a very different interpretation of a “dust effect”. It has a much smaller particle size, a slightly dimmer color, a larger spawning domain (4096 x 2048 x 4096) and uses a different sprite texture (14 instead of 0). Since it follows Lara around, I think it can be an acceptable “room dust” effect, would you agree? Feel free to use it in levels and tweak it to your liking!
+    <hr>
+    <a name="id3"><h3>Particle emitter nodes</h3></a>
+    The previous section dealt with spawning particles in the vicinity of specific object via <span class="var">part.emitterIndex</span>. When using this field, the positions received by the particles are offset from the base position of the chosen emitter moveable (where the object is currently located in the level map). The base position (pivot point) depends on the object, e.g. for Lara it’s down at the ground level (well, when she’s on the ground, at least). We can of course make offsets from this pivot point, but it is not an ideal solution in every case.<br><br>
+    <h4>Emitting particles around meshes</h4>
+    Say we would like to spawn particles near a specific mesh of a moveable, like Lara’s or an enemy’s. We could maybe try offsetting the positions “by hand” so that the particles appear near the desired mesh. However, this is not always a reliable method. To understand why, let’s picture the following situation:<br><br>
+    We would like to spawn some particles near Lara’s head mesh (at index 14). While Lara is standing, with trial and error we obtain the offset coordinates, which could be something like XYZ(0, -740, 0). These coordinates should be correct when Lara is upright. But now imagine she goes into the crawling animations. Are the previous offsets XYZ(0, -740, 0) still valid in this case? Obviously not, as Lara’s head is now much lower on the Y axis and is even protruded a bit forward. Surely, we need a system which can spawn particles not only at the position of a given object, but also at the exact position of a specified mesh of the object, respecting also the rotation.<br><br>
+    Indeed, such a system exists, and that’s precisely what the <span class="var">part.emitterNode</span> field is for. This field works in tandem with the <span class="var">part.emitterIndex</span> field we have already learned about in the previous section.<br><br>
+    The <span class="var">emitterNode</span> field can hold an integer between 0 and 31, indicating the mesh index (32 is the maximum of rendered meshes a moveable can have, thus the heighest possible index is 31). It can also hold the special value -1, indicating no mesh index. It is only functional when a valid <span class="var">emitterIndex</span> has also been specified, otherwise it’s simply ignored. Additionally, if the value for <span class="var">emitterNode</span> is larger than the heighest mesh index on the given moveable item, the <span class="var">part.emitterNode</span> value will be clamped to the actual highest mesh index (so effectively, the range goes from 0 to the total number of meshes of the moveable’s object slot).<br><br>
+    If <span class="var">part.emitterNode</span> is specified (along with a valid <span class="var">part.emitterIndex</span>), the particle position offsets are based around the chosen mesh of the moveable. These offsets also involve the rotation of the mesh in various animations, meaning that the ultimate particle position offset depends on both position and rotation the mesh.<br><br>
+    <h4>Replicating AddEffect with emitterNode</h4>
+    If you have ever used the <span class="var">AddEffect=</span> command in TRNG, hopefully you immediately see the connections between that feature and the <span class="var">part.emitterNode</span> functionality. One huge difference when compared to <span class="var">AddEffect=</span> is that you are not limited to a selected set of particles, like flames, smoke or waterfall mist. You have the freedom to define any kind of particle effect you can come up with, with any color, sprite, size, position, etc. Therefore it is much more versatile than TRNG AddEffects, being more generalized and flexible.<br><br>
+    Here is a quick example script demonstrating a simple effect that sets our poor Lara’s head on fire. We use the handy <span class="var">getLaraIndex()</span> to set Lara’s Tomb4 index to the <span class="var">part.emitterIndex</span> field. The head mesh is at index 14 in the LARA / LARA_SKIN slot and that’s what we put in the <span class="var">part.emitterNode</span> field. The particle effect is a flame effect with the standard fire sprite (0), but I made it blue-colored just for the sake of demonstrating the customizability.
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local firehead<br><br>
+      local function fireheadInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(firehead)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getLaraIndex()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterNode = 14 <span class="com">-- Lara's head mesh</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = randint(20, 27)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = randint(192, 255)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart / 8<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 10<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = 48<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(80, 128)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = 255<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd.r = 32<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd.g = randint(160, 224)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd.b = randint(192, 255)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = randfloat(-32, 32)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = randfloat(-32, 32)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = randfloat(-32, 32)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.x = randfloat(-4, 4)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.z = randfloat(-4, 4)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.rot = degToRad(randint(0, 359))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.rotVel = degToRad(randomNegate(randfloat(4, 8)))<br>
+      end<br><br>
+      firehead = createGroup(fireheadInit, nil)
+    </div>
+    <img class="fig" src="ch1_5/firehead.gif"><br>
+    Of course, <span class="var">part.emitterNode</span>, like pretty much any other particle field, can also be assigned a random value. The highest mesh number in the LARA slot is the head mesh 14, so we can assign any random integer between 0 and 14. Try it!
+    <div class= "code">
+      part.emitterNode = randint(0, 14)
+    </div>
+    <img class="fig" src="ch1_5/firerandom.gif"><br>
+    Now that’s something you couldn’t easily pull off with AddEffects! We will revisit this randomized mesh approach later, to generalize Lara’s “on fire” burning effect to various enemy slots.<br>
+    <hr>
+    <a name="id4"><h3>Particle acceleration</h3></a>
+    Acceleration is the third vector property posessed by particles, after <a href="Chapter1.html#id6">position</a> and <a href="Chapter1.html#id10">velocity</a>.<br><br>
+    The same way velocity is the change to position over time, acceleration is the change to velocity over time. On each frame, any non zero acceleration on any axis is applied cumulatively to velocity (just as velocity is applied cumulatively to position each frame). But what is acceleration even useful for? In physics, acceleration is generally the result of some force acting on an object. If an object is motionless or moving at a constant velocity in a straight line, we say it does not experience any acceleration. This can be either because no force is acting upon it or because all of the forces are mutually cancelling themselves out, resulting in a net force of zero. Differently, if an object changes its speed, curves or starts moving in a different direction, it is due to acceleration.<br><br>
+    <h4>How to understand acceleration</h4>
+    The most approachable and easy to understand example for accelaration is that of gravity making an object fall to the ground. In this case, the force of Earth’s gravity pulls the object towards the ground, resulting in downwards acceleration (this is of course Newton’s understanding of gravity, Einstein’s general relativity views it instead as the warping of space-time caused by mass, but I digress). Of course, acceleration is a 3D vector, meaning we are not limited to just the force of gravity pointing downwards, but we can imagine other scenarios where an object accelerates or decelerates in some direction, due to some force acting upon it (not only gravity).<br><br>
+    Another easily understood example is that of driving a vehicle: hitting the gas pedal makes the vehicle accelerate, hitting the brakes makes it decelerate. Steering the vehicle left and right is also a form of acceleration, in fact (change in direction = change in velocity = acceleration)!<br><br>
+    If a round object slows down to a halt when rolling on a flat surface, it is because the friction force vector (which opposes the velocity vector) makes it slowly decelerate until coming to a rest. If the object drops into a liquid, then we have the force of buoyancy trying to push the object upwards, against gravity pulling it downwards. If the object is less dense than the surrounding liquid (if the mass of the object is less than the mass of the liquid displaced by the object), it will float to the top (buoyancy wins). Otherwise if it’s more dense, it will sink to the bottom (gravity wins). Additionally, in liquids, objects tend to move slower than in air. This is another manifestation of friction, slowing the object down. For this reason, items reach a constant moving speed faster when moving through liquids than through air (the increased friction cancels any further acceleration on the object). These are all examples of various forces acting and counter-acting on objects, resulting in acceleration and deceleration of objects in motion.<br><br>
+    Acceleration is also what makes objects take a curved trajectory through space. Objects experiencing zero acceleration will always move in a straight line (or in the special case where velocity is also zero, remain motionless). Going again with gravity, imagine throwing a ball forwards. If there was no gravity, it would fly straight ahead. However, gravity makes it curve away from this straight path, landing on the ground. This curving due to gravitational acceleration is also what keeps planets in orbit around the sun. They are constantly accelerating around it, yet not falling towards it!<br><br>
+    <h4>Particle acceleration vector</h4>
+    In the particle system, a particle’s acceleration vector can be accessed through the <span class="var">part.accel</span> field. Similarly to <span class="var">part.pos</span> and <span class="var">part.vel</span>, it is a 3D vector with X, Y and Z components:
+    <div class="code">
+      part.accel.x <span class="com">-- X acceleration</span><br>
+      part.accel.y <span class="com">-- Y acceleration</span><br>
+      part.accel.z <span class="com">-- Z acceleration</span>
+    </div>
+    The most frequent (but not exclusive) use for acceleration is to simulate gravity acting on particles. The TR engine has a <strong>gravity constant</strong> of <strong>6 units per frame</strong>. Falling items (e.g. Lara, rollingballs, grenades, flares, gunshells) whilst falling, all accelerate at a rate of 6 units per frame. This simply means that 6 is added to the falling item’s Y velocity each frame. Therefore, if you want to match the TR engine gravity with particles, you can use a positive <span class="var">part.accel.y</span> of <span class="var">6</span>, whilst keeping the X and Z components at the default <span class="var">0</span>:
+    <div class="code">
+      part.accel.y = 6 <span class="com">-- TR engine gravity</span>
+    </div>
+    Particles by themselves do not check collision with room geometry, hence if you try this, you will see particles falling through the floor. We will learn how we can make particles collide with and bounce off of floors and walls, once we get to <strong>particle functions</strong> in the next chapter.<br><br>
+    <h4>Acceleration “slowdown” trick</h4>
+    I will not elaborate further on topic of acceleration, if you understood everything above, there is not much else to add. Surely, you will figure out your own uses for setting acceleration on particles. However, I would like to show a neat little trick you can set up in the init function, which is making particles start out with a fast initial speed and gradually slow down, reaching a stop at the end of their life. If we give particles randomized velocities and random <span class="var">part.lifeSpan</span>:
+    <div class="code">
+      part.sizeStart = randint(50, 90)<br>
+      part.sizeEnd = part.sizeStart * 7<br><br>
+      part.lifeSpan = randint(40, 50)<br><br>
+      part.vel.x = randfloat(-70, 70)<br>
+      part.vel.y = randfloat(-70, 70)<br>
+      part.vel.x = randfloat(-70, 70)
+    </div>
+    We can then make them fully stop when they reach the end of their respective <span class="var">part.lifeSpan</span> with the following code:
+    <div class="code">
+      part.accel.x = -part.vel.x / part.lifeSpan<br>
+      part.accel.y = -part.vel.y / part.lifeSpan<br>
+      part.accel.z = -part.vel.z / part.lifeSpan<br>
+    </div>
+    or more concisely, by using <strong>vector arithmetic</strong> (this will be covered in later chapters):
+    <div class="code">
+      part.accel = -part.vel * (1 / part.lifeSpan)<br>
+    </div>
+    <img class="fig" src="ch1_5/ch1_5_accel.gif"><br>
+    As a result, we’ll obtain particles that start out fast, but will slow down completely as they reach the end of their life span (there’s a metaphor for something somewhere in there…). This results in a kind of “friction” in the particle motion. Note that this is not physically accurate friction, but it’s close enough for most purposes. This trick will work regardless of the particle’s starting velocity and life. Due to the calculated acceleration values, the particles, by definition, will always reach 0 velocity as they die. However, this will no longer work if the velocity changes in the update function. For that, there is another “friction” technique, which will be demonstrated in the chapter about update functions.<br>
+    <hr>
+    <a name="id5"><h3>Particle size ratio factor</h3></a>
+    Recall when I was explaining how <a href="Chapter1.html#id4">particle size</a> works for sprite particles. What I mean is the notion of the “particle square”, i.e. the square on which the sprite texture is mapped onto. The particle size refers to the size of this square. I was not really telling the full story, though… more generally, the sprites are mapped onto rectangles. A square is simply a special case of a rectangle, where all its four sides are the same length.<br><br>
+    Immediate question – is there something about a particle that determines whether it will be a square or rectangle? As a matter of fact, there is! The particle field <span class="var">part.sizeRatio</span> controls the proportions of the rectangle onto which the particle texture is mapped. It holds a floating point number between -1 and 1, with the default value being 0.<br><br>
+    As you may already guess, the particle is a perfectly even square when <span class="var">part.sizeRatio</span> is equal to 0. Outside of the default, though, this property is a kind of ratio between the horizontal and vertical size of the rectangle onto which the sprite texture is mapped. The exact way it works is conveyed through the following formulae:<br><br>
+    <span class="var">
+      xSize = (sizeRatio + 1) / 2<br>
+      ySize = 1 - xSize
+    </span><br><br>
+    Here is a simple tool demonstrating this logic. Use the <span class="var">sizeRatio</span> slider below and examine how it affects the shape of the square / rectangle:<br>
+    <table cellpadding="0" cellspacing="0" style="border: none; margin-left: auto; margin-right: auto; user-select: none">
+      <tr>
+        <td style="width: 380px">
+          <ul style="list-style-type: none; font-family: 'Consolas'">
+            <li><span class="var">xSize = (sizeRatio + 1) / 2</span></li>
+            <li><span class="var">ySize = 1 - xSize</span></li>
+            <li>&nbsp;</li>
+            <li>
+              <strong>sizeRatio</strong>
+              <input id="rat" type="range" value="0" min="-100" max="100" style="width: 150px">
+              <span id="val-rat">0.0</span>
+            </li>
+            <li>
+              <strong>xSize</strong>:&nbsp;<span id="val-x">0.5</span>
+            </li>
+            <li>
+              <strong>ySize</strong>:&nbsp;<span id="val-y">0.5</span>
+            </li>
+          </ul>
+        </td>
+        <td>
+          <canvas id="ratio" style="margin-left: 10px">
+            <script src="ch1_5/ratio.js"></script>
+          </canvas>
+        </td>
+      </tr>
+    </table>
+    When <span class="var">sizeRatio</span> is -1, the <span class="var">xSize</span> is 0, meaning the particle is squished into an infinitely thin, vertical line. At <span class="var">sizeRatio</span> 1, the <span class="var">ySize</span> is 0 – the particle size is squashed into a horizontal line. In between, you get various rectangular shapes, including the default square shape at <span class="var">sizeRatio = 0</span>.<br><br>
+    This property can be used to give particles variation in proportions (squished and streched particles). The squeezing and stretching is applied prior to rotation of the texture, allowing you to create thin, “splintery” particles with any round sprite texture:
+    <div class="code">
+      part.spriteIndex = 11 <span class="com">-- "shine" sprite texture</span><br><br>
+      part.sizeStart = randint(150, 300)<br>
+      part.sizeEnd = part.sizeStart<br><br>
+      part.rot = degToRad(randint(0, 359))<br><br>
+      part.sizeRatio = 0.8
+    </div>
+    <img class="fig" src="ch1_5/ch1_5_thin.gif"><br>
+    When you pair this with update functions, you can even animate this squeezing and stretching over time (but update functions are something that the next chapter will be concerned with).<br>
+    <hr>
+    <a name="id6"><h3>Particle color fading time</h3></a>
+    When I described the way the <a href="Chapter1.html#cols">color properties</a> <span class="var">part.colStart</span> and <span class="var">part.colEnd</span> work, I said that the particles will linearly transition between the start color and end color during their life. As it turns out, this isn’t the full truth of the matter, either. This transistion from the start color to end color can also occur in a shorter duration than the entire lifespan.<br><br>
+    The sprite particle property <span class="var">part.colFadeTime</span> describes the duration (in game ticks) over which this color transition will take place. By default, this field is equal to <span class="var">0</span>. This makes the particles behave exactly as was explained in Chapter 1, i.e. going between <span class="var">part.colStart</span> and <span class="var">part.colEnd</span> during the full <span class="var">part.lifeSpan</span> of the particle. Therfore,
+    <div class="code">
+      part.colFadeTime = 0
+    </div>
+    behaves the same as if we put:
+    <div class="code">
+      part.colFadeTime = part.lifeSpan
+    </div>
+    Differently, if we set this property to a non-zero value, it can make the particles complete this color transition sooner.<br><br>
+    You can set both positive and negative values for this field, though they work differently.<br><br>
+    Positive values mean that the particle should begin transitioning immediately after being spawned and end the transition within the duration indicated by <span class="var">part.colFadeTime</span> (which is smaller than <span class="var">part.lifeSpan</span> itself). After completing the transition, the particle remains at <span class="var">part.colEnd</span> for the rest of its life duration. When using positive values, <span class="var">part.colFadeTime</span> must be larger than zero, but less or equal to <span class="var">part.lifeSpan</span>, i.e. satisfy the condition:<br><br>
+    <span class="var">0 &lt; colFadeTime &lt;= lifeSpan</span><br><br>
+    It will get clamped to the <span class="var">lifeSpan</span> maximum if you try setting a larger value, anyway. As an example, if you want particles to finish changing color halfway through their life span, you can do:
+    <div class="code">
+      part.lifeSpan = randint(96, 128)<br>
+      part.colFadeTime = part.lifeSpan / 2 <span class="com">-- particle will fade color from start to half of lifeSpan</span>
+    </div>
+    On the other side, we have negative values. These are a bit more awkward, but they mean the particle should start transitioning from <span class="var">part.colStart</span> to <span class="var">part.colEnd</span> when the particle has <span class="var">-(colFadeTime)</span> (the negative of the negative, i.e. positive) game ticks of life left. This means that the particle initially remains at <span class="var">part.colStart</span> and does not begin transitioning into <span class="var">part.colEnd</span> until it has been alive for <span class="var">(lifeSpan&nbsp;+&nbsp;colFadeTime)</span> game ticks, with <span class="var">colFadeTime</span> being some negative integer (thus subtracting from <span class="var">lifeSpan</span>). The particle will complete the whole color transition exactly when reaching the end of its life. The negative values must also satisfy the condition:<br><br>
+    <span class="var">0 &lt; -(colFadeTime) &lt;= lifeSpan</span>
+    <div class="code">
+      part.lifeSpan = randint(96, 128)<br>
+      part.colFadeTime = -(part.lifeSpan / 4) <span class="com">-- particle color fading will be delayed until the remaining quarter of lifeSpan</span>
+    </div>
+    This field has a more niche purpose and it isn’t one you will use very often, presumably. It’s mainly there to replicate a very similar functionality in original TR4 particles, which had this color fading time, e.g. used with flame sprites. It gives a limited ability to fine-tune the coloration of your particle effects.<br><br>
+    The more robust way to manage the color of particles through their lifetime is using the <span class="var">part.colCust</span> property within update functions, which again, will be explained in the upcoming Chapter 2.<br>
+    <hr><br>
+    This concludes the main portion of <strong>Chapter 1</strong>. We have learned about a few more particle properties, discovered how to make particles spawn around moveables with <span class="var">part.emitterIndex</span> and how to replace TRNG AddEffects by making use of the <span class="var">part.emitterNode</span> field.<br><br>
+    In the upcoming <strong>Chapter 2</strong>, we finally delve into the much hyped update functions. Hope to see you there as well!<br><br><br>
+    If you would like to learn how you can still squeeze an extra bit of coolness from just init functions, before moving onto update functions, the bonus section below might be for you. I will warn that you will probably like it more if you enjoy math, at least to some degree. If that does not pique your interest, feel free to move on to the next chapter:
+    <table width=100%>
+      <tr>
+      <td></td>
+      <td style="text-align: right"><a href="Chapter2.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+    <hr>
+    <a name="id7"><h3>Bonus: Geometric spawning formations</h3></a>
+    In our dust particle script we have been focusing on for most of <strong>Chapter 1</strong>, we were spawning the particles randomly within a rectangular box of certain dimensions. Let’s admit that a box is a rather boring shape. By applying some knowledge of math, it’s not difficult to spawn particles in a multitude of different spatial arrangements, such as a cylinder, spiral, helix, sphere, or any other easily defined mathematical shape. We will go through a few examples in the following section.<br><br>
+    <h4>Cylinder formation</h4>
+    Our objective is to change the spawning shape of the particles from a box to a cylinder with a given radius and height. But a cylinder is round on its sides, how can we generate such circular shapes?<br><br>
+    Let’s remind ourselves a bit of math from school. A circle is a 2D shape made up of all points that are an equal distance away from a central point. We call this distance the <i>radius</i> and usually denote it with the letter <span class="var">r</span>.<br>
+    <img class="fig" src="ch1_5/circle.png">
+    How do define a circle with radius <span class="var">r</span>? There are two common math equations for it. The first of them involves the coordinates of the circle’s central point (<span class="var">xp</span>, <span class="var">yp</span>) in the following equality:<br><br>
+    <span class="var">
+      (x - xp)² + (y - yp)² = r²
+    </span><br><br>
+    All the value pairs of (<span class="var">x</span>, <span class="var">y</span>), which satisfy the above equality, describe the circle of radius <span class="var">r</span>, centered at the point (<span class="var">xp</span>, <span class="var">yp</span>). Unfortunately, this equality of a circle will not be very useful for our purposes, as it does not exactly tell us what <span class="var">x</span> and <span class="var">y</span> are.<br>
+    Another way of defining a circle is with the trigonometric functions, <span class="var">cos()</span> and <span class="var">sin()</span> and some angle, which we can designate with <span class="var">ang</span>. We use the following equations for getting the coordinates values of <span class="var">x</span> and <span class="var">y</span>:<br><br>
+    <span class="var">
+      x = r * cos(ang) + xp<br>
+      y = r * sin(ang) + yp
+    </span><br><br>
+    As the angle <span class="var">ang</span> sweeps from 0 to 360 degrees (0 to 2π radians), it will trace out the circle of radius <span class="var">r</span> through the <span class="var">x</span> and <span class="var">y</span> coordinates (which are dependant on the value of <span class="var">ang</span>). We can say that the angle <span class="var">ang</span>, defined in the range 0 to 2π, serves as the <i>parametric variable</i> (or parameter) for these equations. Try the interactive demo below to see how it works:<br><br>
+    <table cellpadding="0" cellspacing="0" style="border: none; margin-left: auto; margin-right: auto; user-select: none">
+      <tr>
+        <td style="width: 380px">
+          <ul style="list-style-type: none; font-family: 'Consolas'">
+            <li><span class="var">x = r * cos(ang)</span></li>
+            <li><span class="var">y = r * sin(ang)</span></li>
+            <li>&nbsp;</li>
+            <li>
+              <strong>&nbsp;r&nbsp;</strong>
+              <input id="radius" type="range" value="100" min="0" max="150" style="width: 120px">
+              <span id="val-r">5.0</span>
+            </li>
+            <li>
+              <strong>ang</strong>
+              <input id="angle" type="range" value="135" min="0" max="360" style="width: 120px">
+              <span id="val-ang">135</span>
+            </li>
+          </ul>
+        </td>
+        <td>
+          <canvas id="circle" style="margin-left: 10px">
+            <script src="ch1_5/circle.js"></script>
+          </canvas>
+        </td>
+      </tr>
+    </table>
+    These <i>parametric equations</i> for the circle are exactly what we will need to spawn our particles in a ring shape.<br><br>
+    If you recall the last chapter, we randomized the position of dust particles with randomly generated numbers in the variables <span class="var">dx</span>, <span class="var">dy</span>, <span class="var">dz</span>.
+    <div class="code">
+      local dx = randfloat(-512, 512)<br>
+      local dy = randfloat(-512, 512)<br>
+      local dz = randfloat(-512, 512)<br><br>
+      part.pos.x = dx<br>
+      part.pos.y = dy<br>
+      part.pos.z = dz
+    </div>
+    What we did here is we used the <span class="var">dx</span>, <span class="var">dy</span>, <span class="var">dz</span> variables as offsets from the base position, which could be the position of the emitter object. In this case, we were affecting all 3 dimensions in a completely random way, giving rise to a 3D box inside of which the particles could spawn.<br><br>
+    Now, let’s take another look at the parametric equations for the circle:<br><br>
+    <span class="var">
+      x = r * cos(ang) + xp<br>
+      y = r * sin(ang) + yp
+    </span><br><br>
+    and ignore the central point offsets for a moment:<br><br>
+    <span class="var">
+      x = r * cos(ang)<br>
+      y = r * sin(ang)
+    </span><br><br>
+    the x and y offsets are correlated with each other through the variables <span class="var">r</span> for the radius and <span class="var">ang</span> for the angle. If we use a constant value for <span class="var">r</span>, we get a point somewhere on the circle, depending on the provided value for <span class="var">ang</span>. Here’s where we can do something interesting.<br><br>
+    Let’s create <span class="var">ang</span> as a variable in Lua and give it a random value between 0 and 2 pi. Of course, to make things easier for ourselves, we can use the <span class="var">degToRad()</span> utility function to specify values in degrees, since the <span class="var">cos()</span> and <span class="var">sin()</span> functions are designed to work with radians, not degrees.
+    <div class="code">
+      local ang = degToRad(randint(0, 359)) <span class="com">-- get random angle between 0 and 359 degrees</span>
+    </div>
+    And now we can use the parametric equations for the circle to get the x and y offsets. We can name them <span class="var">cx</span> and <span class="var">cy</span> for our example. We will also use a radius <span class="var">r</span> of 1024. Here’s what we should have:
+    <div class="code">
+      local ang = degToRad(randint(0, 359)) <span class="com">-- get random angle between 0 and 359 degrees</span><br>
+      local rad = 1024 <span class="com">-- radius</span><br><br>
+      local cx = rad * cos(ang)<br>
+      local cy = rad * sin(ang)
+    </div><br>
+    You might notice that we have only two offset variables this time, <span class="var">cx</span> and <span class="var">cy</span>. Without the central point <span class="var">(xp, yp)</span>, these variables describe the x and y coordinates of a circle at the origin point (0, 0). In global coordinates, this will very likely be outside of your level map. Remember, about <span class="var">part.emitterIndex</span>, though? If we assign some moveable index to it, the <span class="var">cx</span> and <span class="var">cy</span> positions, assigned to the <span class="var">part.pos</span> coordinates, will be offsets from the moveable object. We’ll rely on this approach.<br><br>
+      We have to assign the <span class="var">cx</span> and <span class="var">cy</span> to the <span class="var">x</span> and <span class="var">y</span> of the <span class="var">pos</span> vector. But that’s just one of the options. We could perhaps assign it to <span class="var">z</span> and <span class="var">y</span>. Ultimately, it only depends which direction we want the cylinder to face. If we decide to do this:
+    <div class="code">
+      part.pos.x = cx<br>
+      part.pos.y = cy<br>
+      part.pos.z = 0
+    </div>
+    then the cylinder’s circumference will be in the XY plane, so it will be vertically oriented. If we instead do this:
+    <div class="code">
+      part.pos.x = 0<br>
+      part.pos.y = cx<br>
+      part.pos.z = cy
+    </div>
+    then it will also be vertically oriented, but in the ZY plane, perpendicular to the first example. Finally, when we do this:
+    <div class="code">
+      part.pos.x = cx<br>
+      part.pos.y = 0<br>
+      part.pos.z = cy
+    </div>
+    then it will be in the XZ plane, oriented horizontally.
+    <br><br>
+    Okay, now we have a circular ring… what do we do with it? On that one axis that did not receive the circle offsets (<span class="var">cx</span>, <span class="var">cy</span>), let’s calculate a third, random offset with <span class="var">randint()</span> or <span class="var">randfloat()</span>, to create the cylinder’s “side surface”. Let’s assume we decided to go with the circle in the horizontal XZ plane. We will thus add the random offset to the <span class="var">y</span> coordinate, while adding <span class="var">cx</span> to <span class="var">x</span> and <span class="var">cy</span> to <span class="var">z</span> (if this is confusing, rename <span class="var">cy</span> to <span class="var">cz</span>).
+    <div class="code">
+      part.pos.x = cx<br>
+      part.pos.y = randfloat(-512,512)<br>
+      part.pos.z = cy
+    </div>
+    Now let’s create a proper particle group and init function around that. The particles we will use will have the bubbles sprite texture (13), a turquise color and no velocity. Also, we’ll use <span class="var">part.emitterIndex</span> to make the particles spawn around an emitter item. I used an invisible CAMERA_TARGET nullmesh with ID 3.
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local bubbles<br><br>
+      local function bubbleInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(bubbles) <span class="com">-- create a particle of the "bubbles" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3) <span class="com">-- emitter item with ID 3</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 3<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = randint(48, 80)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = 0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(224, 255)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = randint(224, 255)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- cylindrical spawning formation</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local ang = degToRad(randint(0, 359)) <span class="com">-- get random angle between 0 and 359 degrees</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rad = 1024 <span class="com">-- radius</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local cx = rad * cos(ang)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local cy = rad * sin(ang)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = cx<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = randfloat(-512, 512)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = cy<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 13 <span class="com">-- "bubble" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 30 <span class="com">-- fade in for 1 second</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30 <span class="com">-- fade out for 1 second</span><br>
+      end<br><br>
+      bubbles = createGroup(bubbleInit, nil)
+    </div>
+    If we run the above particle effect in the level, we should get a cylindrical ring of turquoise bubbles around the emitter object.<br><br>
+    <img class="fig" src="ch1_5/ch1_5_b1.jpg"><br><br>
+    You can now customize the offset variables however you like. For example, we can randomize the <span class="var">r</span> value, which will result in the cylindrical ring having some depth.
+    <div class="code">
+      local rad = randint(512, 1024)
+    </div>
+    We can also choose to add some velocity on the Y axis, so the bubbles will travel upwards along the cylinder:
+    <div class="code">
+      part.vel.y = -16
+    </div><br>
+    <img class="fig" src="ch1_5/ch1_5_g1.gif"><br>
+    I can picture such bubbles working quite nicely in a circular aquatic tank with fishes or a bio-reactor in a sci-fi research facility… but I shall leave it here. You can add more “flavor” to the effect, if you wish.<br>
+    <hr>
+    <a name="helix"><h3>Helix and spiral formations</h3></a>
+    The terms <i>spiral</i> and <i>helix</i> are often used interachangably. However, stricly speaking, they mean two different things, at least in the world of mathematics. A spiral is a linear shape that curves (spirals) around a point in 2D, outwards (or inwards, depends on how you look at it). Here are some examples of spirals:<br><br>
+    A helix is also a curved linear shape, but one that exists in 3D space. It is more akin to a corkscrew or a vine that wraps around some cylindrical (or cone) shape:<br><br>
+    Both have a similar connotation of going round and round, but as you see, they are not quite the same thing.<br><br>
+    For this example, we will create an animated helix of particles. Later on, we will make some adjustments to create a spiral effect from it as well.<br><br>
+    <h4>The circle parametric equations, again</h4>
+    We continue working with parametric equations for a circle. Let’s take another look at how we used them in the cylinder / ring example from earlier:
+    <div class="code">
+      local ang = degToRad(randint(0, 359)) <span class="com">-- get random angle between 0 and 359 degrees</span><br>
+      local rad = 1024 <span class="com">-- radius</span><br><br>
+      local cx = rad * cos(ang)<br>
+      local cy = rad * sin(ang)
+    </div>
+    We were picking a random number between 0 and 359 to get a random angle on each frame. But what if this angle was not a random value? Say, if it was derived from the game tick value, for instance.<br><br>
+    The <span class="var">getGameTick()</span> function was already brought to our attention. There, we used it to spawn particles at exact time intervals. Albeit this time around, we’ll be using it for a completely different purpose.<br>
+    What if we assigned the value returned from <span class="var">getGameTick()</span> to the angle variable <span class="var">ang</span>? Let’s examine the following code:
+    <div class="code">
+      local ang = getGameTick() <span class="com">-- get number of elapsed game ticks</span><br>
+      local rad = 512 <span class="com">-- radius</span><br><br>
+      local cx = rad * cos(ang)<br>
+      local cy = rad * sin(ang)
+    </div>
+    How will this affect the results we get for the variables <span class="var">cx</span> and <span class="var">cy</span>?<br>
+    Firstly, we should realize that the trigonometric functions are periodic, meaning they repeat with a certain interval as you give them increasing argument values. Secondly, the trigonometric functions assume that whatever argument we give to them is in radians. So, as the game tick counter starts counting up: 0, 1, 2, 3, 4, … the functions will receive angles of 0 radians, 1 radians, 2 radians… and that’s a very fast increment of angles! As a reminder, a full 360 degree angle is 2 pi radians, so the whole circle path would be completed in a bit over 6 game ticks, way too quickly!<br><br>
+    Let’s try to slow it down somewhat. First of all, let’s wrap our <span class="var">getGameTick()</span> call inside a <span class="var">degToRad()</span> call, like so (you can also split it into separate steps / variables, if that makes it more understandable):
+    <div class="code">
+      local ang = degToRad(getGameTick()) <span class="com">-- get game ticks and convert them to radian values</span><br>
+    </div><br>
+    We’ll analyse how much time it takes to complete the circle now. As the game ticks go up, we get increments of 1 degree to the angle. We can conclude that it will take 360 game ticks to complete the circle. 360 frames divided by 30 fps gives us… 12 seconds! This time around, it’s a tad too slow, if you ask me. Let’s multiply our current result by 6, which should make the circle complete in exactly 2 seconds:
+    <div class="code">
+      local ang = degToRad(getGameTick()) * 6 <span class="com">-- get game ticks and convert to radian values, multiply by 6</span><br>
+    </div><br>
+    Let’s now integrate the above modifications into a particle effect. If we just use the offsets on static particles with no velocity, the result will be a particle trail that moves along a circle:
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local helix<br><br>
+      local function helixInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(helix) <span class="com">-- create a particle of the "helix" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3) <span class="com">-- emitter item with ID 3</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 2<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = 160<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart / 4<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = 255<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = 128<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = 0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- helical spawning formation</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local ang = degToRad(getGameTick()) * 6 <span class="com">-- get game ticks and convert to radian values, multiply by 6</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rad = 512 <span class="com">-- radius</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local cx = rad * cos(ang)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local cy = rad * sin(ang)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = cx<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = cy<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = 0<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 11 <span class="com">-- "shine" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 0 <span class="com">-- no fade in</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30 <span class="com">-- fade out for 1 second</span><br>
+      end<br><br>
+      helix = createGroup(helixInit, nil)
+    </div><br>
+    <img class="fig" src="ch1_5/ch1_5_g2.gif"><br>
+    Don’t get me wrong, this is a neat effect on its own (it looks a bit like a “loading” icon), but we specifically wanted a 3D helix. Do obtain one, we need to add velocity on the axis perpendicular to our circle, which in this case is the Z axis. And we’ll extend the <span class="var">lifeSpan</span> by a few more seconds, too:
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local function helixInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(helix) <span class="com">-- create a particle of the "helix" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3) <span class="com">-- emitter item with ID 3</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 6<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = 160<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart / 4<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = 255<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = 128<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = 0<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- helical spawning formation</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local ang = degToRad(getGameTick()) * 6 <span class="com">-- get game ticks and convert to radian values, multiply by 6</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rad = 512 <span class="com">-- radius</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local cx = rad * cos(ang)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local cy = rad * sin(ang)<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.x = cx<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.y = cy<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos.z = 0<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.vel.z = 16 <span class="com">-- velocity on perpendicular Z axis</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 11 <span class="com">-- "shine" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 0 <span class="com">-- no fade in</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 30 <span class="com">-- fade out for 1 second</span><br>
+      end
+    </div><br>
+    <img class="fig" src="ch1_5/ch1_5_g3.gif"><br>
+    Now that’s what I’m talking about, so pretty!<br><br>
+    Here’s an extra tidbit, if we want the helix to converge to the center at the tip, the trick is to use the negatives of <span class="var">cx</span> and <span class="var">cy</span>, divided by <span class="var">part.lifeSpan</span>, as the X and Y velocities, respectively.
+    <div class="code">
+      part.vel.z = 16<span class="com">-- velocity on perpendicular Z axis</span><br>
+      part.vel.x = -cx / part.lifeSpan<br>
+      part.vel.y = -cy / part.lifeSpan
+    </div>
+    If we now “flatten” the helix by removing the Z velocity (setting it to 0 or commenting it out) and leave the X and Y velocities as they are, we actually obtain a proper inwards spiral effect, try it out!<br>
+    <img class="fig" src="ch1_5/ch1_5_g4.gif"><br>
+    An outwards spiral starting from the center can be done by not offseting the spawn position (spawning from the center 0, 0, 0) and using positive <span class="var">cx</span> and <span class="var">cy</span> for calculating X and Y velocity.
+    <div class="code">
+      <span class="com">--part.pos.x = cx</span><br>
+      <span class="com">--part.pos.y = cy</span><br>
+      <span class="com">--part.pos.z = 0</span><br><br>
+      part.vel.x = cx / part.lifeSpan<br>
+      part.vel.y = cy / part.lifeSpan
+    </div>
+    <img class="fig" src="ch1_5/ch1_5_g5.gif"><br>
+    This demonstrates that it is possible to achieve simple “animations” with particles, by being clever with init functions. Of course, it is not the particles themselves that are animating (notice how they are always moving in a straight line!), but the spawn positions of the particles changing over time create a frame-by-frame illusion of “spinning around”.<br><br>
+    Making the particles actually travel along the curved helical/spiral path is something that can only be done through update functions (since it requires modifying the particle velocity per each frame). We will return to this topic when we talk about update functions in Chapter 2.<br>
+    <hr>
+    <h4>Spherical formation</h4>
+    As our final example, we will examine how you can spawn particles on the surface of and inside a sphere. This can be useful in the creation of “energy shields”, “force fields” and the like, whatever requires a spherical shape.<br><br>
+    A sphere is a shape very much related to the circle. It’s like the 3D equivalent of the 2D circle. A sphere is also described by some point <span class="var">(xp, yp, zp)</span> and a radius <span class="var">r</span>, since it’s also a collection of all points at equal distance <span class="var">r</span> from some central point, this time in 3D space. This extra dimension makes things a bit more complicated, though. We’re no longer describing a curve as with a 2D circle, but rather a <i>surface</i>. Unlike the circle’s curve, the parametric equations for a sphere’s surface can’t rely on just a single angle parameter <span class="var">ang</span>. To describe the surface of a sphere parametrically, we need two separate angle parameters. These angles are often denoted with the greek letters θ (<i>theta</i>) and φ (<i>phi</i>). In the code we can call them <span class="var">theta</span> and <span class="var">phi</span>, accordingly.<br><br>
+    The first angle, <span class="var">theta</span>, serves the same purpose as with the angle <span class="var">ang</span> in the circle equations, describing the horizontal facing or the <i>azimuth</i> angle. It is an angle in the range 0 to 2 pi (or 0 to 360 degrees). If you imagine the sphere as a globe, <span class="var">theta</span> can also be thought of as the longitude. As the angle <span class="var">theta</span> increases, you are travelling along the perimeter of the globe.<br><br>
+    The second angle, <span class="var">phi</span>, describes the elevation or the <i>polar</i> angle from the plane on which the central point rests (it’s called the polar angle because it brings you from the north pole to the south pole, or vice-versa). It is often in the range between -pi/2 and pi/2 (-90 to 90 degrees). With the globe analogy, <span class="var">phi</span> can also by thought of as the latitude. At <span class="var">phi</span> = 0, you’re on this globe’s equator and at the extreme ends of -pi/2 and pi/2 you’re at the south pole or north pole, respectively (which pole is which depends purely on convention, however).<br><br>
+    Since we’re now dealing with 3D space, you may figure that we will be obtaining X, Y and Z coordinates from a set of parametric equations. What are these equations?<br><br>
+    <span class="var">
+      x = r * cos(theta) * sin(phi)<br>
+      y = r * cos(phi)<br>
+      z = r * sin(theta) * sin(phi)
+    </span><br><br><br>
+    Huh, these are harder to follow than the ones for the circle, aren’t they? Don’t worry, they only look more intimidating with those extra multiplications. The bottom line is that we don’t generate just a single angle value, but in fact two separate ones, <span class="var">theta</span> and <span class="var">phi</span>.<br>
+    If were working up a cold sweat over these equations already, I have some good news for you. We don’t need to use these parametric equations directly in code (but if you really want to, go for it!). The API provides a function called <span class="var">cartesianFromSpherical()</span>. This function takes 3 arguments:
+    <div class="code">
+      cartesianFromSpherical(r, theta, phi)
+    </div>
+    The arguments represent the sphere’s radius <span class="var">r</span> and the angles <span class="var">theta</span> and <span class="var">phi</span>. It returns a <span class="var">vector3D</span> object corresponding to the cartesian (X, Y, Z) coordinates for the given radius, theta and phi. This makes obtaining the right values for X, Y and Z much easier.<br><br>
+    Alright, we know we can pick any (positive) value for the radius, but what about the angles? Well, I already outlined the ranges expected for both <span class="var">phi</span> and <span class="var">theta</span> earlier.<br>
+    For <span class="var">phi</span> we need an angle between 0 and 360 degrees. We can simply copy what we did for the cylindrical formation from before. We can also including float values in-between:
+    <div class="code">
+      local phi = degToRad(randfloat(0, 360)) <span class="com">-- get random angle between 0 and 360 degrees</span>
+    </div>
+    For <span class="var">theta</span>, it’s a different matter. We need an angle between -90 and 90 degrees. This is also very straightforward:
+    <div class="code">
+      local theta = degToRad(randfloat(-90, 90)) <span class="com">-- get random angle between -90 and 90 degrees</span>
+    </div>
+    Now we just need to combine it with a particle effect to test it out. Here is what I used, I decided to spawn several short-lived particles per frame by using a helper function with a for loop (recall the subject of manipulating <a href="Chapter1.html#multispawn">particle spawnrates</a> in Chapter 1):
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local sphere<br><br>
+      local function sphereInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(sphere) <span class="com">-- create a particle of the "sphere" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3) <span class="com">-- emitter item with ID 3</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 1<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = 60<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart * 5<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = randint(128, 160)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(128, 160)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = 255<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- spawn on spherical surface</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rad = 768 <span class="com">-- radius</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local phi = degToRad(randfloat(0, 360))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local theta = degToRad(randfloat(-90, 90))<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local vec = cartesianFromSpherical(rad, phi, theta)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos = vec<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 11 <span class="com">-- "shine" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 15<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 15<br>
+      end<br><br>
+      local function sphereMain()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;for i = 1, 5 do<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sphereInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;end<br>
+      end<br><br>
+      sphere = createGroup(sphereMain, nil)
+    </div>
+    As you see, in the lines:
+    <div class="code">
+      local vec = cartesianFromSpherical(rad, phi, theta)<br>
+      part.pos = vec
+    </div>
+    we called the <span class="var">cartesianFromSpherical()</span> function with arguments <span class="var">rad</span>, <span class="var">phi</span> and <span class="var">theta</span>. The returned vector with cartesian coordinates was saved as <span class="var">vec</span>. Then we assign <span class="var">vec</span> directly to <span class="var">part.pos</span>, which is possible because <span class="var">vec</span> itself holds a 3D vector object. Of course, since we’re also using <span class="var">emitterIndex</span> to assign an emitter object, <span class="var">part.pos</span> will serve as an offset from the object’s position.<br><br>
+    Let’s check out what we ended up with in game.<br><br>
+    <img class="fig" src="ch1_5/ch1_5_g6.gif"><br>
+    Well, it’s not <i>bad</i>, but…<br><br>
+    Pay close attention to the density of the particles around the of the sphere at the top and on the bottom. It’s hard to notice, but on average, they appear to be slightly more concentrated there than around the “equator”. I think it would look better if the distribution was more even across the whole sphere. To explain how to solve this, we need to first make an observation on why this happens in the first place.<br><br>
+    Observe that when you’re closer to the poles of a spherical globe, as you change <span class="var">phi</span> (the longitude), you travel along a much smaller “circle”, compared to when you’re near the equator. In our current formulas for getting a random <span class="var">theta</span> (the latitude), we have an equal possibility of getting any possible latitude:
+    <div class="code">
+      local theta = degToRad(randfloat(-90, 90)) <span class="com">-- get random angle between -90 and 90 degrees</span>
+    </div>
+    What this means is that there is an equal chance to get any latitude angle between -90 and 90. Notice that does not result in an even distribution of points on the sphere, since near the north and south “poles” the points are more “clumped” together. Instead, what we would need to do is calculate not an even (uniform) distribution, but rather, a <i>normal distribution</i>. A normal distribution is described by the <strong>bell curve</strong>, then get the appropriate angle back from them and feed them to the <span class="var">cartesianFromSpherical()</span> function.<br>
+    This sounds scary and difficult, but in reality it’s a lot easier than it sounds. We simply have to apply the inverse-sine function <span class="var">asin()</span>, which takes a value between -1 and 1 (the output range of the normal <span class="var">sin()</span>) and it will return the appropriate angle value.<br><br>
+    Perhaps this all sounds esoteric to people without a strong mathematical background, but if that’s the case, don’t worry. This is the one situation where I’ll explicitly allow you a copy-paste!<br>
+    The change is very simple, for <span class="var">theta</span>, we generate a randfloat() between -1 and 1 and apply the <span class="var">asin()</span> on it:
+    <div class="code">
+      local theta = asin(randfloat(-1, 1))
+    </div>
+    With the above line, <span class="var">theta</span> will receive an angle between -pi/2 and pi/2 as before, but the distribution of angles will not be even across the whole range. Instead, as you approach one of the poles, the likelyhood of getting that angle is less and less, while angles around the equator have the heighest likelyhood. In principle, this should result in an even distribution of points across the entire sphere surface. Let’s test it again to see if that’s actually the case.
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local function sphereInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(sphere) <span class="com">-- create a particle of the "sphere" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3) <span class="com">-- emitter item with ID 3</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 1<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = 60<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart * 5<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = randint(128, 160)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(128, 160)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = 255<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- spawn on spherical surface</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local rad = 768 <span class="com">-- radius</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local phi = degToRad(randfloat(0, 360))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local theta = asin(randfloat(-1, 1))<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local vec = cartesianFromSpherical(rad, phi, theta)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos = vec<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 11 <span class="com">-- "shine" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 15<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 15<br>
+      end
+    </div>
+    <img class="fig" src="ch1_5/ch1_5_g7.gif"><br><br>
+    Indeed, although it’s very subtle, the points appear to spawn more evenly now, as evident by the lack of “clumping” around the poles.<br><br><br>
+    Okay, so we are able to spawn points on the sphere’s surface, but what about its volume, filling up the sphere with particles? Let’s do the first thing that comes to mind and simply generate a random radius value from 0 to our max radius 768, with equal distribution:
+    <div class="code">
+      local r = randfloat(0, 768) <span class="com">-- random radius</span><br>
+    </div>
+    If we test this, we yet again see there’s something off… the points are mostly “clumping” near the center of the sphere and get less dense towards the surface.<br>
+    We’ve fallen for yet another trap of mathematics, because this is not the correct way to evenly distribute points within the sphere’s volume. Instead, what we should do is make the point distribution depend on the cube root (root of degree 3) of the distance from the center. The cube root function is <span class="var">cbrt()</span>:
+    <div class="code">
+      local r = 768 * cbrt(randfloat(0, 1)) <span class="com">-- max radius multiplied by cubic root of random float 0 - 1</span>
+    </div>
+    Now, let’s put it all together:
+    <div class="code">
+      <button class="btn" onclick="copyCode(this)"><span class="tooltip">Copy to clipboard</span><img src="clipboard.png"></button>
+      local function sphereInit()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local part = createSpritePart(sphere) <span class="com">-- create a particle of the "sphere" group</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.emitterIndex = getTombIndex(3) <span class="com">-- emitter item with ID 3</span><br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.lifeSpan = 30 * 1<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeStart = 60<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.sizeEnd = part.sizeStart * 5<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.r = randint(128, 160)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.g = randint(128, 160)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colStart.b = 255<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.colEnd = part.colStart<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="com">-- spawn on spherical surface</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local r = 768 * cbrt(randfloat(0, 1)) <span class="com">-- max radius multiplied by cubic root of random value 0 - 1</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local phi = degToRad(randfloat(0, 360))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local theta = asin(randfloat(-1, 1))<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;local vec = cartesianFromSpherical(r, phi, theta)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.pos = vec<br><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.spriteIndex = 11 <span class="com">-- "shine" sprite texture</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeIn = 15<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;part.fadeOut = 15<br>
+      end
+    </div>
+    <img class="fig" src="ch1_5/ch1_5_g8.gif"><br><br>
+    The points now spawn evenly within the whole volume of the sphere (it’s hard to see on the gif, but more noticeable in-game).<br><br>
+    As you have witnessed, you can leverage math skills to create very neat patterns and shapes of particles, or even achieve some pseudo-animation, as was show with the helix and spiral examples. Do not always “go by the book” with particle effects. You are encouraged to experiment with different ideas and think outside the aformentioned rectangular box!
+    <hr><br>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter1.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter2.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+  </body>
+</html>

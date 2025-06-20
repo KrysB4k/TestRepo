@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>2 – Module parameter system</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <h1>Module parameter system</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter1.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter3.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table><br>
+    <p>In the previous chapter, we have learned the basics of installing modules and importing them into level scripts, by using the <span class="var">require()</span> instruction.<br><br>
+    I also mentioned that modules can come with or without customizable parameters. Whether a module has parameters or not is up to the coder, the author of the module. As (only) a builder, you are limited to modifying values of these given parameters. This is not to say you can’t (or shouldn’t) branch out and learn how to change module code yourself (if anything, I’d encourage it, once you get comfortable with importing modules)! But going by our idealized categorizations of plugin users, a builder (with no knowledge nor interest in coding) never interferes with module code directly, and only changes parameters implemented by the coder.<br><br>
+    Parameters provide a way to modify selected aspects of the particle effect, without having to change the module code itself. An example could be changing the sprite texture used by the particles. Or their color, or size, or duration, or determine how many particles are spawned and how often. With more complex modules, they can determine how much damage a particle can do to Lara or an enemy. If the particle has an area of effect, a parameter can describe the radius or range of that area. A parameter can specify the NGLE Script ID of the moveable object that will serve as a particle emitter or a target for a projectile. When dealing with mesh particles, parameters may determine which object slot and which mesh of the slot will be used for the mesh particles. If the particles play certain sound effects, a parameter can control which sound effect is played.<br><br>
+    As you see, parameters can control and influence many different things. Because of this, customizable module parameters are quite reminiscent of the <span class="var">Customize=</span> and <span class="var">Parameters=</span> script commands in TRNG, which can describe various customizations of some TRLE or TRNG feature. However, what exactly is customizable varies between one feature and another, and you cannot change any aspects that are not explicitly given a parameter in the script command. The same can be said about module customization: what is customizable for a module depends on the module itself (and the intentions of the module’s author). It is the responsibility of the coder to communicate how many parameters a module has, what their names are and provide information about what each parameter is responsible for in the module (the same way <span class="var">CUST_</span> and <span class="var">PARAM_</span> constants have their parameters explained in the TRNG reference).<br><br>
+    In this chapter, I will explain how the parameter system works and how the syntax changes when importing a module with parameters (there is a bit more Lua scripting involved here than for simply importing with <span class="var">require()</span>).<br><br>
+    </p>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. How do module parameters work?</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Importing modules with parameters</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Accessing parameter values</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Importing module duplicates</a><br>
+    </strong><hr>
+    <a name="id1"><h3>How do module parameters work?</h3></a>
+    <p>As mentioned above, module parameters can be well understood by TRNG users through an analogy to parameters in <span class="var">Customize=</span> and <span class="var">Parameters=</span> scripts. The parameter list for each individual <span class="var">CUST_</span> or <span class="var">PARAM_</span> constant is different, and the same applies to modules.<br><br>
+    Furthermore, just as parameters in the <span class="var">CUST_</span> / <span class="var">PARAM_</span> scripts often have default values (that are used if you don’t set a particular parameter, e.g. by typing <span class="var">IGNORE</span>), module parameters have these default values too. If you do not set any value to the parameter yourself, the module will use the default value set by the coder instead (you literally <strong>ignore</strong> the parameter you do not wish to change). However, this does not mean that the default value that the parameter falls back to is always useful! To give an explanatory example: imagine that one parameter asks for the NGLE script ID of a moveable, which could be the emitter for the particle effect, let’s say. The coder decided to give this parameter the arbitrary placeholder value <span class="var">51</span>. Notice, which object has that specific NGLE script ID is different for each level map. It may even turn out that there is no object with that NGLE script ID in the level map yet! Hence the  “default value” of this parameter is quite useless. Therefore, with some modules, certain parameters must <strong>always</strong> be changed after import, because the placeholder value is not meaningful or not applicable to your level map. Again, coders, as module authors, should communicate which parameters need obligatory adjustment.<br><br>
+    </p>
+    <h4>Types of parameters</h4>
+    <p>Parameters for modules can be <strong>numbers</strong>, <strong>booleans</strong> or <strong>strings</strong>. I believe that number parameters should be self-explanatory (e.g. “a number for the particle’s lifetime”, “the number values of red, green and blue”), but I feel I should explain what booleans and strings are for.<br><br>
+    <strong>Booleans</strong> in Lua can have two possible values: <span class="var">true</span> or <span class="var">false</span>. These words are always typed as lowercase to be seen as booleans. Neither <span class="var">True</span> nor <span class="var">FALSE</span> will be recognized as booleans by Lua. There is a high likelyhood you have some idea of what booleans are, generally speaking, but in a nutshell, they are used in mathematics and computer science to determine the logical value of a statement. For example, <span class="var">2 > 1</span> is <span class="var">true</span>, while <span class="var">3 < 2</span> is <span class="var">false</span>. Booleans also can also be used as an on/off toggle for something, with <span class="var">true</span> usually representing the on-state and <span class="var">false</span> representing off-state. As an example, the module implements a damaging projectile, which can optionally set Lara on fire, or just do regular damage with no fire. The coder can add a boolean parameter, which will answer the question: “Does the projectile set Lara on fire?”. The builder can then use the boolean parameter to answer with <span class="var">true</span> (“yes”), so the projectile will indeed set her on fire. Answering with <span class="var">false</span> (“no”) instead, the projectile will only hurt Lara, but will not set her on fire. Essentially, a boolean is useful for answering a yes or no question, enabling or disabling, turning something on / off.<br><br>
+    Also, we can have <strong>strings</strong>. We have already seen strings before actually, when we were importing the modules with <span class="var">require()</span> by their name. The name of the module typed in quotes, as in <span class="var">require("firehead")</span>, was actually a string! A string is nothing more that some text placed inside a (matching) pair of quotes. String parameters can therefore be used to give arbitrary text data to a module. Admittedly, not that many features of the plugin call for the use of strings. However, it is possible to access values of the TRNG text variables (BigText, Last Input Text, Text1-4) with the plugin, so perhaps a module could do something with the text you provide to it via the string parameter. I will leave it up to creative module coders to figure it out, though!<br><br>
+    To recap, module parameters can come in 3 different forms:
+    <ul>
+      <li>number parameters (e.g. <span class="var">1, 4, 30, 0.25, -10</span>)</li>
+      <li>boolean parameters (<span class="var">true</span> or <span class="var">false</span>)</li>
+      <li>string parameters (e.g. <span class="var">"some text"</span>)</li>
+    </ul><br>
+    The coder should list all the parameters of the module, describing the type of each parameter (number, boolean or string), explain what it does, what is its default value and whether or not the default value should be changed after importing.<br>
+    </p>
+    <hr>
+    <a name="id2"><h3>Importing modules with parameters</h3></a>
+    <p>The <span class="var">require()</span> instruction, in the form it was shown <a href="Chapter1.html#id4">in the last chapter</a>, imports a module by disregarding any parameters it may have (and assuming the default values of the parameters, which the coder must also provide). If the module, as indicated by the coder, has no parameters, then you might as well use the simplified import instruction:
+    <div class="code">
+      require("party")
+    </div>
+    There is a more elaborate import syntax though, which gives access to the parameters of a module after importing it, allowing the builder to modify them freely in the level script. But to get there, we must explain a bit more about Lua scripting. Specifically, the concept of <strong>identifiers</strong>.<br><br>
+    </p>
+    <h4>Identifiers in Lua</h4>
+    <p>An identifier is simply a label given to something inside Lua. Examine the below line:
+    <div class="code">
+      local fruit = 'apple'
+    </div>
+    We have a string, <span class="var">'apple'</span>. Before the string, we have this strange <span class="var">local fruit = </span> construct. What we are doing here is creating a label (identifier) for the <span class="var">"apple"</span> string, with the name <span class="var">fruit</span> (in other words, setting <span class="var">fruit</span> to equal <span class="var">'apple'</span>). The <span class="var">local</span> word that comes before the <span class="var">fruit</span> label is simply a syntactic requirement. I’m deliberately refraining from explaining what <span class="var">local</span> actually means here, because to do so, I would also have to introduce many programming ideas which are not strictly needed to understand the motivation behind identifiers (and may potentially obscure the picture to a less technical-minded person). If you are really curious, the coder path provides these explanations. Otherwise, treat the <span class="var">local</span> as a necessity for defining labels, the same way <span class="var">require()</span> is a necessity for importing modules.<br><br>
+    By giving something a label, we have an easy way to refer to it in Lua later on.<br><br>
+    </p>
+    <h4>Importing a module with an identifier</h4>
+    <p>Why did I bring up these labels all of a sudden? Well, because we also can label imported modules. And by doing so (labelling the module), we gain access to any parameters it may have!<br><br>
+    Let me demonstrate a “labeled” module import:
+    <div class="code">
+      local mylabel = require("party")
+    </div>
+    This will not only import the <span class="var">party.lua</span> module, but also give it the identifier <span class="var">mylabel</span>.<br><br>
+    Each module can have a unique, case-sensitive identifier (an identifier shouldn’t be reused for a different module in the same level script file, but can be safely reused in a different file). On top of being unique, the identifier must follow these rules, which are enforced by Lua’s syntax requirements:
+    <ul>
+      <li>it does not contain any spaces (e.g. <span class="var">my label</span>)
+      <li>it does not begin with any digit characters (e.g. <span class="var">123label</span>)
+      <li>it uses only alphanumeric characters (lower- and uppercase letters, digits), meaning no punctuation or symbol characters like <span class="var">! , . @ # $ % ^ ( ) + - =</span> etc. (with one exception, the underscore <span class="var">_</span> character is allowed)
+      <li>it is not any one of the following lower-case, <strong>reserved keywords</strong> (uppercase versions of these words can technically be used):
+    </ul>
+    <div class="code">
+      <table style="width: 600px; height: 150px; table-layout: fixed; font-size: 110%;">
+        <tr class="var"><td>and</td><td>break</td><td>do</td><td>else</td><td>elseif</td><td>end</td></tr>
+        <tr class="var"><td>false</td><td>for</td><td>function</td><td>goto</td><td>if</td><td>in</td></tr>
+        <tr class="var"><td>local</td><td>nil</td><td>not</td><td>or</td><td>repeat</td><td>return</td></tr>
+        <tr class="var"><td>then</td><td>true</td><td>until</td><td>while</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+      </table>
+    </div>
+    As long as you follow the above rules, the label (identifier) for a module can be anything you want. Some valid identifier examples include: <span class="var">fire_effect, IceSparkles, Debris1, Debris2, BIG_NUKE_EXPLOSION, PuppyKittenBunny12345</span> (preferably though, make the name somewhat relevant to the module effect).
+    </p>
+    <hr>
+    <a name="id3"><h3>Accessing parameter values</h3></a>
+    <p>Alright, we can now give modules these identifiers, but what’s the purpose of that? Well, if you have an unlabeled module, you cannot access its parameters, even if it may have them. Some parameters can fall back on default values, which is not the worst case. The worst case is when the module has a mandatory parameter that always needs changing (like the NGLE script index), but the unlabeled import prevents you from accessing it! That is why importing with an identifier is generally more recommended, unless you know for a fact that the module does not have any parameters to change.<br><br>
+    To access a specific parameter of a module (e.g. in order to change it), you first must know how the coder called the parameter in question (again, the coder should disclose this kind of information when distributing the module). For example, <span class="var">party.lua</span> has a parameter called <span class="var">size</span>, which is a number parameter describing the general size of the particles which spawn around Lara.<br><br>
+    We will attempt to import the module and change its <span class="var">size</span> parameter. Let’s open up a level script file (refer back to the previous chapter on <a href="Chapter1.html#id2">how to create one</a>). In the first line, we import the module with an identifier (label), as described before:
+    <div class="code">
+      local party1 = require("party")
+    </div>
+    We have imported the module and gave it the identifier <span class="var">party1</span>. Thanks to this, we can now refer to the module’s parameters! It’s a bit of a tricky syntax, but I think you can get the hang of it.<br><br>
+    Having the <span class="var">party1</span> identifier, in a new line below the import, we can type the identifier again, this time without the <span class="var">local</span> word in front (we only needed it for defining the identifier):
+    <div class="code">
+      local party1 = require("party")<br>
+      party1
+    </div>
+    Right after <span class="var">party1</span>, we type a single dot, and after the dot, we add the word <span class="var">params</span>:
+    <div class="code">
+      local party1 = require("party")<br>
+      party1.params
+    </div>
+    We’re almost there! We now have to type another dot, and after it the name of the parameter we are trying to access, in our case <span class="var">size</span>:
+    <div class="code">
+      local party1 = require("party")<br>
+      party1.params.size
+    </div>
+    Whew! I will explain the meaning of these dots now, by comparing it to file paths in the Windows operating system (or any operating system, frankly). If you imagine the module’s identifier as a folder that contains other folders and files, we can imagine the dots as slashes in the path, for example:
+    <div class="code">
+      party1<br>
+      party1/params<br>
+      party1/params/size
+    </div>
+    Of course, <span class="var">party1</span> and <span class="var">params</span> aren’t actual folders, but there is a similar idea of hierarchy going on here. In order to access the <span class="var">size</span> parameter, you must navigate to it from the “root” (<span class="var">party1</span>), through the intermediate (<span class="var">params</span>), allowing you to reach the final destination (<span class="var">size</span>). Hopefully, this is clear enough and needs no further explanation.<br><br>
+    Okay, that’s nice and dandy, but how do we actually change the parameter? Easy, afterwards we just write an equals sign and type the new value we want the parameter to have. Since <span class="var">size</span> is a number parameter, we should use a number:
+    <div class="code">
+      local party1 = require("party")<br>
+      party1.params.size = 20
+    </div>
+    The <span class="var">size</span> parameter has a default value of 10. By changing it to 20, we should cause the particles to be twice as large! Check in game to see if that’s indeed the case.<br><br>
+    If the module has more than one parameter, we can change the other parameters too! We just have to do it in a new line. For example, on top of changing <span class="var">size</span>, let’s change the <span class="var">radius</span> parameter, controlling the radius of the area around which the particles will spawn:
+    <div class="code">
+      local party1 = require("party")<br>
+      party1.params.size = 20<br>
+      party1.params.radius = 1024
+    </div>
+    With <span class="var">radius</span> having a default value of 512, increasing it to 1024 will make this area bigger.<br><br>
+    Something to be wary of is mistyping anything along the way, for example:
+    <div class="code">
+      local party1 = require("party")<br>
+      part1.params.size = 20<br>
+      party1.param.radious = 1024
+    </div>
+    Both these parameter changes will fail. The <span class="var">size</span> change will fail because we mistyped the module’s identifier, <span class="var">part1</span> instead of the correct <span class="var">party1</span>. The second one will fail because of two typos - the first is mistyping <span class="var">param</span> (it’s always <span class="var">params</span>, plural), the second is in the name of the parameter itself, <span class="var">radious</span>.<br><br>
+    Another thing to be cautious of is making sure the value you are assigning to the parameter matches its type. A number parameter can only take a number, a boolean parameter can only take a boolean (<span class="var">true</span> or <span class="var">false</span>) and a string parameter can only take a string (<span class="var">"text"</span>). Both of the below value changes are incorrect due to values mismatched to parameter types (both are number parameters):
+    <div class="code">
+      party1.params.size = true<br>
+      party1.params.radius = "I like pizza"
+    </div>
+    Be careful with the spelling and assign only correct values to parameters – you should have no problems then.<br><br><br>
+    That’s pretty much the whole science of customizing module parameters. The drill is:
+    <ol>
+      <li>Import the module with an identifier</li>
+      <li>Navigate to the specific parameter by using the dots</li>
+      <li>Change the parameter value with the equals sign <span class="var">=</span>
+    </ol><br>
+    We could leave this topic at that, but there is actually one more thing that I want to reveal to you on the subject of importing modules. I promise that it’s really cool and useful, though!
+    </p>
+    <hr>
+    <a name="id4"><h3>Importing module duplicates</h3></a>
+    <p>Accessing parameters is not the only reason why importing a module with an identifier is worth the hassle. You see, we are not limited to importing a module only once...<br><br>
+    What happens if we import the same module twice, but using different identifiers?
+    <div class="code">
+      local party1 = require("party")<br><br>
+      local party2 = require("party")
+    </div>
+    Well, we get two distinct copies of said module! One we’ve called <span class="var">party1</span> and the other <span class="var">party2</span>.<br><br>
+    Importantly, these copies are distinct, meaning each copy gets its own, independent set of parameters! What this means is if you change <span class="var">party1.params.size</span>, that change <u>does not</u> apply to <span class="var">party2.params.size</span>. You can compare this to copying a file, like a text file. First of all, the copied file must get a different name (if it’s copied inside the same directory, at least). After that, the contents of both files is the same. But once you open the duplicated file, do some changes and save it, that does not mean the same changes were carried over to the original file. After the duplication, they are completely distinct files, with their own contents. The same goes for duplicated modules.<br><br>
+    Why is this important? Well, imagine a hypothetical module (<span class="var">magic.lua</span>) which allows a particle effect to spawn around a specific moveable, by providing its NGLE script ID via a parameter (here we will call it <span class="var">objID</span>). You import the module once, change the moveable ID parameter (e.g. <span class="var">objID = 5</span>) and you now have the effect spawning around the moveable with ID 5. What if you want to have the same effect spawn around another moveable, with ID 6, but keep the effect that’s already tied to moveable 5? It’s as simple as importing the <span class="var">magic.lua</span> module a second time, with a different identifier, and configuring its ID parameter to 6:
+    <div class="code">
+      local magic_5 = require("magic")<br>
+      magic_5.params.objID = 5<br><br>
+      local magic_6 = require("magic")<br>
+      magic_6.params.objID = 6
+    </div>
+    We would now have the magic effect spawning near both moveables at once!<br><br>
+    This duplication mechanism allows to have different variants of the same effect, with a different set of parameters, making modules even more reusable and versatile. For example, you can have the same smoke effect at different spots, with a different color (assuming suitable parameters exist to allow both position variation and color variation). Another example could be adding a ranged projectile attack to a group of enemies, but for one of the enemies (perhaps a boss) to have a stronger projectile, that deals more than the default damage to Lara. You could import duplicates of the projectile module and increase the damage parameter for one of the duplicates.<br><br>
+    Of course, the usefulness of the duplication functionality depends entirely on what parameters the coder has set up for the module. But coders are encouraged to add such parameters to modules in the Coder’s Path tutorials, if applicable, so hopefully they will not disappoint and provide highly customizable modules to builders’ disposal.
+    </p>
+    <hr>
+    <p>Up to this point, we have covered 90% of what a builder should know about modules and level scripts. The parameter system in tandem with the module copying mechanism allow the builder to get far more out of modules compared to the simple, unlabeled import we have seen in the previous chapter.<br><br>
+    The remaining 10% is finally revealing how to protect the integrity of these plain-text Lua scripts once you package the finished custom level project in preparation to upload it to a hosting site (like <a href="https://trle.net/" target="_blank">trle.net</a> or <a href="https://trcustoms.org/" target="_blank">trcustoms.org</a>). However, this 10% makes all the difference if you want to prevent devious players from making harmful traps heal Lara instead!<br><br>
+    Do not skip this upcoming chapter, it is <strong>especially</strong> important to level builders! Take a break here, then we will continue our endevours.</p><br><br><br>
+    <table width=100%>
+    <tr>
+    <td><a href="Chapter1.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+    <td style="text-align: right"><a href="Chapter3.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+    </tr>
+    </table>
+  </body>
+</html>

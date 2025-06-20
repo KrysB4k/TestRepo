@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>6 – Precompiling scripts</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <script src="copycode.js"></script>
+    <h1>Precompiling scripts</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter5.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter7.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+    <br>
+    In this short chapter, we will learn about protecting your script files from tampering, by employing <strong>script precompilation</strong>.
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Protecting your scripts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. How to precompile your scripts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Precompilation is NOT encryption!</a><br>
+    </strong><br>
+    <hr>
+    <a name="id1"><h3>Protecting your scripts</h3></a>
+    To reiterate what we all know by now, Lua scripts are plain text files, which can be opened even in the plain old Notepad. When you are working on your levels, this is very convenient, as you can edit the text file at any moment with ease, whenever you need to make a change. However, once you have finished working on your TRLE adventure and are ready to give your creation to the players, you need to include those script files, so the incredible effects in your level can be appreciated.<br><br>
+    But you may find this to be a problem. After all, nothing is preventing those players themselves from opening the script files in Notepad and making any changes they wish. Perhaps it’s not so bad, if a player only modifies an ambient visual effect that doesn’t change the gameplay. But we have witnessed ourselves that particles can do far more than that! They can directly influence gameplay in significant ways, since they can be harmful projectiles from enemies, powerful new skills given to Lara, or even serve as elements of puzzles. What if the player modifies a projectile dealing Lara damage, in a way that makes it heal her instead? Surely, this is something most builders would hate.<br><br> You can of course write a note in the readme for the players, that you do not wish to have the script files compromised by them. Unfortunately, there have been cases of players going against builders’ wishes and, for example, deliberately deleting plugin files from custom levels. Sadly, this indicates that players cannot always be trusted to play the game as intended by the builder.<br><br>
+    For the above reason, we have allowed the plugin to recognize script files in two formats:
+    <ul>
+      <li>plain text files with <span class="var">.lua</span> extension</li>
+      <li><strong>precompiled binary files with <span class="var">.luac</span> extension</strong></li>
+    </ul>
+    We’re aware of script files in text format. But what are these other, <span class="var">.luac</span> files?<br><br>
+    <h4>Precompiled binaries</h4>
+    The precompiled binaries are a special form of Lua files, where the text script is translated to bytecode. You do not have to know what this means, but the important part is these precompiled files are no longer in text format, meaning they can no longer be edited with Notepad (or any other text editor). The plugin, however, is still able to read them correctly, as if they were the original text script files.<br><br>
+    Precompiled binary scripts have the <span class="var">.luac</span> extension (the “c” at the end stands for “compiled”). A precompiled script file stores all the same information (from the plugin’s standpoint) that the original text script file had, only it is less susceptible to modification by casual players. When loading both level scripts and modules, the plugin preferentially loads <span class="var">.lua</span> text files first. Only when it does not find a <span class="var">.lua</span> file, it tries loading a <span class="var">.luac</span> binary file next. If neither are found, the plugin does not load the script (in the case of modules, this is signalled with a yellow-colored warning in the console).<br><br>
+    Once you are preparing the final version of the playable level or levelset, if you do not want scripts (modules and level scripts) to be tampered with, you should convert all <span class="var">.lua</span> files (level scripts in the <span class="var">data</span> folder and modules in the <span class="var">effects</span> folder) to <span class="var">.luac</span> binaries, then remove the original <span class="var">.lua</span> files from the playable package. This ensures that all of the scripts will still be present in the level set, but will be semi-protected from tampering by nosy players.<br>
+    <hr>
+    <a name="id2"><h3>How to precompile your scripts</h3></a>
+    Precompiling sounds good, doesn’t it? So, how do you precompile your scripts?<br><br>
+    A special tool has been made for this purpose, the <strong>Lua Compiler</strong> tool. It accepts text script files with the <span class="var">.lua</span> extension and generates precompiled <span class="var">.luac</span> files for you. The <span class="var">.luac</span> files can be used in place of the usual Lua scripts. The only difference is they are not as easy to modify as their textual counterparts.<br><br>
+    Precompilation should be done as one of the last steps before shipping out the custom level to players, or at least when you are 100% sure that you will not be making any more changes to a given module or level script. You should always keep your text-form Lua scripts somewhere safe, just in case you want to make more changes to them later. While precompiled files can be reverse-engineered back into text files, it is not possible to recover all information, such as comments and original names of variables.<br><br>
+    <h4>Using Lua Compiler</h4>
+    The Lua Compiler tool is very easy to use. You only need to drag-and-drop the script files which you would like to precompile. The tool will silently generate corresponding <span class="var">.luac</span> files for each script file. If the text script has a syntax error, the tool will inform of this in an error message popup and will not convert the faulty script file.<br><br>
+    The tool will not remove or alter the source text files, so you can feel safe precompiling the original files to binaries repeatedly, each time you make a change.<br>
+    <hr>
+    <a name="id3"><h3>Precompilation is NOT encryption!</h3></a>
+    I want to emphasize that precompiling the script files is not the same as encrypting them!<br><br>
+    The precompilation procedure simply converts the text form of the script to binary form. It does not perform any additional obfuscation of the bytecode afterwards, meaning that eager players can still use a “deobfuscator” tool (<a href="https://luadec.metaworm.site/" target="_blank">here is an example</a>) to retrieve the original script file, mostly intact (except lacking comments and original variable names), and make any desired changes to the script.<br><br>
+    The idea behind script precompilation is that it should (hopefully) discourage 99% of the player base from making alterations to scripts, given they would have to go out of their way to decompile the script files and cheat. However, it will not save your scripts from the 1% that are really determined to do so.<br><br>
+    We (the plugin authors) are not interested in developing full encryption for script files, as we do not view it as necessary. If you feel you need such measures, the plugin source code is freely available for you to implement an encryption/decryption feature at your own discretion. We will not endorse it, though.<br><br>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter5.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter7.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+  </body>
+</html>

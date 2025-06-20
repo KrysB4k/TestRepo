@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>1 – Module installation</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <h1>Installing and importing modules</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="BuilderIntro.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter2.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table><br>
+    <p>The builder interface revolves around importing modules into level scripts. While as a builder, you do not need to code the modules yourself (it’s the coder’s job), you must understand how the Particle System Plugin manages these modules and level scripts, which implies knowing how they are connected to each other.<br><br>
+    Module scripts, as mentioned in the introduction, are Lua script files (text files with the <span class="var">.lua</span> extension). Coders are responsible for writing them and ensuring they work, so the module you receive as a builder should be fully functional, if the coder did a good job. However, once you decide to use some module in your level, you are responsible for the setup needed to get it to work. This includes installing the module in the right place, inside the working directory of your project, importing it into chosen levels and (possibly) performing some customization via the parameter system. If the effect also requires some external assets (e.g. a special mesh or object, a specific sound effect or sprite texture, an additional TRNG script invoked by the module), then as a builder, you need to include these additional assets in your project accordingly.<br><br>
+    In this first chapter, I will describe the process of correctly installing a module (with respective differences for whether you have a project managed by TombIDE or done the old-school way), creating a level script, then importing a module into said level script. In the next chapter, I will explain how the (optional) parameter system works for modules and how you can change parameters that were added by the module’s coder. The third and final chapter goes into guarding the text-based scripts from nosy players and preventing trivial tampering, to protect the integrity of your publicly released levelset.<br><br>
+    </p>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. The module system</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Creating a level script</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Linking (importing) modules in a level script</a><br>
+    </strong><hr>
+    <a name="id1"><h3>The module system</h3></a>
+    <p>The plugin’s module system was designed to make particle effect modules highly reusable and shareable among members of the TRLE building community. It also provides the opportunity for builders with no coding skills to still use the modules with relative ease, after learning how to link modules with levels.<br><br>
+    That is why the plugin is divided into the builder (level script) interface and coder (module script) interface. The coder’s main workspace is in the module scripting interface, whereas the builder works with the finished modules and imports them via the level script interface. It must be emphasized, however, that the aforementioned level scripts are distinct and separate from <span class="var">[Level]</span> sections in the <span class="var">scripts.txt</span> file (which determine the order of levels in a level set and optionally host TRNG scripting for a given level). That is the domain of TRLE scripting and TRNG scripting Paolone built on top of it. The plugin uses Lua scripting though, which while different and requires separate Lua files, is pretty simple in the scope needed to import modules (or we hope so, at least)!<br><br>
+    The level scripts we are talking about here are their own, individual Lua script files, with the <span class="var">.lua</span> extension. These Lua level scripts are not mandatory for any level, nor are they required by the plugin to function. However, if no Lua level scripts are associated with a level, that level cannot use any special particle effects (which is the whole purpose of having the Particle System plugin in the first place).<br><br>
+    <h4>Where level scripts should be placed</h4>
+    Level scripts need to be placed in a folder named <span class="var">levelscripts</span>. The case of the letters does not matter, meaning that <span class="var">LevelScripts</span> is also acceptable, but it must be spelled as a single word (<span class="var">level_scripts</span> or <span class="var">Level Scripts</span> is <u>incorrect</u> and the plugin will not be able to recognize it). This folder is unlikely to exist, so it must be created in your TRLE project folder, in a specific location.<br><br>
+    Where this location is depends on whether the TRLE project is managed with the <strong>TombIDE</strong> (TIDE) application from the Tomb Editor suite, or if it’s a project created the classic way, without new tools. I will describe both cases:
+    <ul>
+      <li>TombIDE project – The project folder contains a wrapper executable (e.g. <span class="var">PLAY.exe</span> or some custom name) which launches the actual game exectuable. There is also a child folder present, <span class="var">Engine</span>. Inside of it, you will see asset folders like <span class="var">data</span> (containing the TR4 level files), <span class="var">audio</span>, and the actual <span class="var">tomb4</span> game executable. This <span class="var">Engine</span> folder is where you create a new folder and name it <span class="var">levelscripts</span>. Inside it, you will be creating the level script Lua files.
+      <li>Old-school, unmanaged project – The project folder has no <span class="var">Engine</span> subfolder, but directly contains folders like <span class="var">data</span> (containing the TR4 level files), <span class="var">audio</span>, and the <span class="var">tomb4.exe</span> under itself. This is where you must create the correctly named <span class="var">levelscripts</span> folder. The level scripts will go in there.
+    </ul>
+    Any number of Lua level script files can be associated with a level file, through a <span class="var">Customize</span> TRNG script command, with a special <span class="var">CUST_LEVEL_SCRIPTS</span> constant belonging to the plugin. However, the details of this process will be explained in the <a href="#id2"><strong>Creating a level script</strong></a> section later.<br><br>
+    If the Lua level scripts are correctly paired with the level, you will be able to <strong>import</strong> module scripts inside of them. Importing a module means that the particle effect implemented by the module will be able to appear in the level (there may be extra prerequisites involved in actually using the effect, for this you must read any instructions given by the module’s author).<br><br>
+    For a module to be importable, it must be visible to the Particle System plugin. Modules are visible only if they are installed into a concrete directory inside the TRLE project folder.<br><br>
+    <a name="module"><h4>Where to install modules</h4></a>
+    Modules, in order to be imported, must be added to a folder named <span class="var">effects</span> or <span class="var">Effects</span>. The case does not make a difference, either is fine, but the spelling <strong>must</strong> be exact (<span class="var">effect</span>, singular, will not work). This folder is also unlikely to be present in the normal layout of TRLE projects, so it must be newly created.<br><br>
+    The location is the exact same as for the <span class="var">levelscripts</span> folder, described above. The folder should be placed alongside <span class="var">data</span>, <span class="var">audio</span> and other asset folders (which in case of a TombIDE project, are contained inside the <span class="var">Engine</span> folder). If this is the case and you see <span class="var">levelscripts</span>, <span class="var">effects</span>, <span class="var">audio</span>, <span class="var">data</span> and the main <span class="var">tomb4.exe</span> all in one place, you’re on the right track.<br><br>
+    After the creation of the <span class="var">effects</span> folder in the proper location, you can insert various effect modules into it. Modules have the form of <span class="var">.lua</span> files (or <span class="var">.luac</span> files, more on this later). These contain the Lua code necessary to implement the effect. If you were to open such a file, you would see the code written in plain text, by the coder. But if you are not a coder yourself, you don’t need to know what goes on in there. Rather, you will be concerned with creating level scripts to import these module files.<br>
+    </p>
+    <hr>
+    <a name="id2"><h3>Creating a level script</h3></a>
+    <p>A level script is a Lua file – a plain-text file with the <span class="var">.lua</span> extension, located in the <span class="var">levelscripts</span> folder. Such files are linked to a particular level entry with the use of <span class="var">Customize= CUST_LEVEL_SCRIPTS</span> command in TRNG script. By using this script command, you specify to the plugin which level script files to load from the <span class="var">levelscripts</span> folder. But there is the question, how do we specify these files? Do we do it by file name? Well, yes, but not in a direct way.<br><br>
+    Due to limitations of TRNG script syntax, it is not possible to directly type the name of a file in the <span class="var">CUST_LEVEL_SCRIPTS</span> command. Instead, we have to rely on <span class="var">ExtraNG strings</span> in <span class="var">english.txt</span>. The name of a level script file, added as an ExtraNG string, must be written in a particular way. You type the name of the file, but <u>without</u> the <span class="var">.lua</span> extension at the end. For example, in <span class="var">levelscripts</span>, there is a level script file called <span class="var">temple.lua</span>. Due to the way TRNG works, the names of any installed plugins are included as ExtraNG string entries, hence if you installed this plugin, you are bound to have at least one NG string entry already occupied. But it does not matter, we can add new ones easily. The layout of ExtraNG strings (if using TombIDE) can look something like this:<br>
+    <table cellpadding="15" cellspacing="15" class="tab">
+      <tr>
+        <th>ID</th>
+        <th>Hex</th>
+        <th>[ExtraNG]</th>
+      </tr>
+      <tr>
+        <td><span class="var">1</span></td>
+        <td><span class="var">$001</span></td>
+        <td><span class="var">Plugin_ParticleSystem</span></td>
+      </tr>
+    </table><br>
+    To this, we can add another entry, by typing in the next free row the name of the level script file, without the extension: <span class="var">temple</span>. We should have something like this:<br><br>
+    <table cellpadding="15" cellspacing="15" class="tab">
+      <tr>
+        <th>ID</th>
+        <th>Hex</th>
+        <th>[ExtraNG]</th>
+      </tr>
+      <tr>
+        <td><span class="var">1</span></td>
+        <td><span class="var">$001</span></td>
+        <td><span class="var">Plugin_ParticleSystem</span></td>
+      </tr>
+      <tr>
+        <td><span class="var">2</span></td>
+        <td><span class="var">$002</span></td>
+        <td><span class="var">temple</span></td>
+      </tr>
+    </table><br><br>
+    It’s important to note that no additional characters (not even spaces) can be <u>before or after</u> this name (otherwise the plugin will get confused). After we have added this entry to ExtraNG strings, we can refer to it via its ID number, <span class="var">2</span>.<br><br> You use these IDs in <span class="var">CUST_LEVEL_SCRIPTS</span> in a <span class="var">[Level]</span> (or <span class="var">[Title]</span>) section, first beginning with the <span class="var">Customize=</span> TRNG script command:
+    <div class="code">
+      Customize= CUST_LEVEL_SCRIPTS,
+    </div>
+    After the <span class="var">CUST_LEVEL_SCRIPTS</span> constant, you type ID numbers of <span class="var">ExtraNG strings</span> added to <span class="var">english.txt</span>:<br>
+    <div class="code">
+      Customize= CUST_LEVEL_SCRIPTS, 2
+    </div>
+    Numerous IDs can be specified, separated with commas, meaning you can use not just one, but several level scripts per each level (up to a maximum of 64 different NG string IDs).<br><br>
+    It’s possible for no script files to be linked to the level, simply by not writing a <span class="var">CUST_LEVEL_SCRIPTS</span> script in the <span class="var">[Level]</span> entry. The plugin assumes no special effects will be used for this level in such case.<br><br>
+    The level script file is a raw text file. This means the file consists purely of text characters and contains no non-text data. Files with the <span class="var">.txt</span> extension are a prime example of this. If you create and save such a file, you will notice the file retains no extra data regarding formatting of the text (font style, size, color, boldness, italics, etc), leaving just the raw text. This is exactly what we want for <span class="var">.lua</span> files, too!<br><br>
+    So, one more question that remains is… how do you make a <span class="var">.lua</span> file? Given that these files must be plain-text, could we just make one in Notepad, the way we make <span class="var">.txt</span> files? Well, as a matter of fact, we can, but it can be a bit cumbersome, as you will see for yourself.<br><br>
+    </p>
+    <h4>Using Windows Notepad (not recommended)</h4>
+    <p>If you decide on using Windows Notepad, you can create a new text file and save it under the same name as the level file it will soon be paired to. There is one problem that needs addressing – it still has the <span class="var">.txt</span> file extension, but we need a <span class="var">.lua</span> extension. Depending on your system settings, you may not be able to see the extensions of common file types, just their names. If that’s the case, you can change the settings for this in the File Explorer (how exactly depends on the version of Windows OS you are using, unfortunately it isn’t consistent between Win 7, 10 or 11 – all I can say is Google is your friend here). Once all file extensions are visible, it is a matter of changing the three letters <span class="var">txt</span> after the dot to <span class="var">lua</span>. Windows will probably complain now that changing files’ extensions manually can break them. Since both <span class="var">txt</span> and <span class="var">lua</span> are plain text files, in this instance it’s just Windows making a mountain out of a molehill (as it often tends to do...), rest assured nothing bad will happen to the file.<br><br>
+    However, if you want to avoid the faff of changing your File Explorer settings and then manually editing the file’s extension, with Windows making an overly dramatic scene about it each time, I can recommend an alternative (and superior) solution. The solution is using a special text editor for such purposes: <strong>Notepad++</strong>!<br><br>
+    </p>
+    <h4>Using Notepad++ (recommended)</h4>
+    <p><strong>Notepad++</strong> is a more technical-oriented text editor, ideal for working with various scripts, source code, markup files and similar technical text files. It allows you to save plain text to dozens of extensions directly, including to <strong>Lua source files</strong> (<span class="var">.lua</span>)!  On top of that, it’s also very easy to use, similar to Notepad, with non-invasive extra features. It can be downloaded for free from its official website: <a href="https://notepad-plus-plus.org/" target="_blank">https://notepad-plus-plus.org/</a><br>
+    <strong>Notepad++</strong> is better than the regular Notepad for many reasons. Firstly, you can immediately save text to Lua files, without the renaming workaround. Secondly, if the extension is recognized, the text editor displays color-coded syntax specific to the language, which when dealing with source code, greatly improves the readability. Thirdly – you can pick custom themes, dark, bright or anything in between!<br><br>
+    <img class="fig" src="notepadplusplus.jpg"><br><br>
+    The latter two reasons are mainly beneficial to coders, but there is no disputing that the primary reason (saving to <span class="var">.lua</span> without annoying workarounds) is great for everyone.<br><br>
+    In <strong>Notepad++</strong>, to create a level script file, just create a new, empty file and save it in the <span class="var">levelscripts</span> subfolder (where you find the level files themselves). When saving, enter some chosen name for the level script file (here we will go with the name of the level file, <span class="var">tut1</span>, but this need not be the case) <u>AND importantly</u>, the <span class="var">.lua</span> extension after the name! You can also select the <strong>Lua source file</strong> option from the dropdown, but either way, the filename <u>must</u> explicitly include the extension, otherwise the file will be saved without it (extensionless files are rather uncommon in Windows but are very common in UNIX operating systems, like Linux, hence the saving dialog does not assume an extension, it must be visibly appended to the file name). Double check that the file was correctly saved, with the <span class="var">.lua</span> extension, inside the <span class="var">levelscripts</span> folder (e.g. you should have <span class="var">levelscripts/tut1.lua</span>).<br><br>
+    Do not forget to then add a suitable ExtraNG string entry for the file, which in our example should simply be <span class="var">tut1</span>, no extension. Note down whatever ID number is assigned to this string (e.g. <span class="var">ID 3</span>) and then add the following line to the appropriate <span class="var">[Level]</span> entry:
+    <div class="code">
+      Customize= CUST_LEVEL_SCRIPTS, 3
+    </div>
+    Of course, you may have additional level scripts, assigned to different ID numbers in ExtraNG strings.<br><br>
+    Now that an empty level script file has been created and linked to the TR4 level itself, we are able to import effect modules into it!<br>
+    </p>
+    <hr>
+    <a name="id3"><h3>Linking (importing) modules in a level script</h3></a>
+    <p>By now, you should now have a level script file (such as <span class="var">tut1.lua</span>) in the <span class="var">levelscripts</span> subfolder, the name of this file (minus the extension) added as an ExtraNG string, and the <span class="var">Customize= CUST_LEVEL_SCRIPTS</span> line to go with it in the appropriate <span class="var">[Level]</span> section. We should also have some modules in the <span class="var">effects</span> subfolder, ready to be imported. What’s that? You don’t have any modules yet? Well, you should have said so! To get you started, you may grab a few example modules from this repository: [LINK HERE]<br><br>
+    Download and place them in the <span class="var">effects</span> folder, which was described in the earlier section on <a href="#module">installing modules</a>.<br><br>
+    Let’s say we want to import one of the downloaded modules, <span class="var">firehead.lua</span>. There is a special syntax for importing, and this is where the minimal amount of Lua scripting comes into play.<br><br>
+    </p>
+    <h4>The require() instruction</h4>
+    <p>There is a specific instruction for the Particle System plugin, called <span class="var">require()</span>. When the plugin loads the level script, it sees this instruction and imports (loads) the module requested in the instruction. In the case of the <span class="var">firehead.lua</span> module, the import instruction you write inside <span class="var">tut1.lua</span> (or whatever your level script happens to be) should look like this:
+    <div class="code">
+      require('firehead')
+    </div>
+    Don’t run away just yet, let me explain what it means!<br><br>
+    The <span class="var">require</span> instruction signals to the plugin that the level will “require” a certain module. The instruction has the imported module specified inside round parentheses, but you may notice a few quirks:
+    <ol>
+      <li>The name of the module script is written without the <span class="var">.lua</span> extension
+      <li>The name is placed inside the parentheses next to <span class="var">require</span> and encased in single-quotes, <span class="var">'like this text here'</span>. Alternatively to the single-quote characters you can use double-quotes, <span class="var">"like this example"</span>. Both quote types are acceptable, but they cannot be mixed, e.g. <span class="var">"this is not allowed'</span>, <span class="var">'nor is this"</span>.
+    </ol>
+    I’ll do my best to explain the reasons for these two quirks. Regarding the first point, we are not specifying the <span class="var">.lua</span> extension of the file, because module scripts can have two different extensions, <span class="var">.lua</span> or <span class="var">.luac</span>. Their differences will be explained eventually, but the module file’s actual extension is omitted in either case. Just something to keep in mind, otherwise the plugin will reject the import instruction.<br><br>
+    About the second point, in the Lua programming language, there are some predefined “instructions” that it can understand, like the <span class="var">require</span> instruction. Anything that Lua does not recognize as an instruction is often treated as a syntax error. This is a problem, because modules can have practically any name (that is allowed for files, at least). How do we make this distinction between a specific Lua instruction and a random file name? By putting the name inside quotes (the name actually becomes a string, but we will get to that later). In a way, putting the module name in quote characters serves the same purpose as putting the level script name in an ExtraNG string did.<br><br>
+    Make note of the fact, that there are no white-space characters before or after the name of the module file, the quote characters are tightly wrapped around the name (without the extension, of course). Any whitespace will confuse the importer.<br><br>
+    Once you save the level script with the newly added import instruction, you can go into the game and run the level to which the level script is paired. You should then see the effect of the firehead module (I think its name is quite apt)!<br><br>
+    </p>
+    <h4>Importing more modules</h4>
+    <p>
+    If you want to import another module from the bunch (e.g. <span class="var">party.lua</span>), you can do it on the next line in the level script:
+    <div class="code">
+      require('firehead')<br>
+      require("party")
+    </div>
+    For the <span class="var">party.lua</span> module I used double-quotes this time, but as mentioned, it does not make a difference which one you use, as long as they are not mixed together.<br><br>
+    If you save, launch the game and go into the level corresponding to the level script, sure enough, you should see some colorful, silly particle effects dance around Lara! If that’s indeed the case, you have successfully imported both modules! Feel free to import some other modules and play around (note that some have custom parameters, something that’s explained in the upcoming chapter).
+    </p>
+    <hr>
+    <p>The <span class="var">require()</span> instruction is what you will be mostly using as a level builder. You now have 50% of the knowledge necessary to use the plugin, and for simple modules, it’s sufficient. However, coders can also make modules that contain customizable parameters, which needs a more indepth explanation (and a bit more insight about Lua).<br><br>
+    I will not overload you with this information yet, though. I’ll leave it for our next chapter. In the meantime, you can take a breather and relax!</p><br><br><br>
+    <table width=100%>
+    <tr>
+    <td><a href="BuilderIntro.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+    <td style="text-align: right"><a href="Chapter2.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+    </tr>
+    </table>
+  </body>
+</html>

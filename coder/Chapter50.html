@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>5 – Level scripts and Module scripts</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <script src="copycode.js"></script>
+    <h1>Level scripts and Module scripts</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter4.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align: right"><a href="Chapter6.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+    <br>
+    The particle system operates with two distinct, albeit interconnected scripting interfaces. These interfaces are:
+    <ul>
+      <li>level scripts – for level builders (the end users of effects)</li>
+      <li>module scripts – for module developers (the creators of effects)</li>
+    </ul><br>
+    Below we discuss the relevance and role of both script interfaces in the plugin and explain how the module should be structured to allow its use in a level script.<br>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">1. Level scripts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Module scripts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Module parameters</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Module groups</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Importing modules into level scripts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id6">6. Guidelines for writing modules</a>
+    </strong><br>
+    <hr>
+    <a name="id1"><h3>Level scripts</h3></a>
+    Level scripts are Lua script files placed in the <span class="var">data</span> subfolder and are named accordingly with the TR4 level files they are paired to, only with the extension <span class="var">.lua</span> instead of <span class="var">.tr4</span>. For example, if our level is called <span class="var">tut1.tr4</span>, the level script file must be called <span class="var">tut1.lua</span>. Another example, if we have the level <span class="var">coastal.tr4</span>, the corresponding script file should be named <span class="var">coastal.lua</span>.<br><br>
+    To be recognized and loaded by the plugin, this script file must be placed in the <span class="var">data</span> subfolder (together with all the level files). If the plugin doesn’t find a match between the current level and a script file, no script file will be loaded for the level. This does not interrupt the game flow (the level will still be loaded correctly and the game continues as normal), but it means that the level cannot use any scripted effects.<br><br>
+    The TR4 level files and level script files will also be mismatched in case of misspellings, e.g. <span class="var">tuts.lua</span> instead of <span class="var">tut1.lua</span>. Level scripts are not mandatory, i.e. lack of a level script file does not interrupt game flow (i.e. levels will still be loaded as normal). However, to use effects a level, there must be an equivalent level script file in the <span class="var">data</span> subfolder.<br><br>
+    Level scripts, though they are Lua files, are not for scripting new effects. They mainly serve level builders to import existing effects and modify selected features. Instead, plugin is equipped with a powerful and convenient <strong>module system</strong> for writing custom effects. Modules are isolated, independent Lua scripts that define a self-contained particle effect (or a grouping of related effects). This means that if some users prefer not to write much code, these level builders won’t need to make effect scripts by themselves, but may use effects distributed as modules from developers or other users.<br><br>
+    If you are a developer, although you must be familiar with both interfaces, you will be using the module interface much more extensively in your developer role. Developers write <strong>module scripts</strong> for level builders to use (you might be both a developer and a builder, in which case as a level builder, you will use your own modules).<br><br>
+    <hr>
+    <a name="id2"><h3>Module scripts</h3></a>
+    Module scripts are Lua script files located in the <span class="var">effects</span> subfolder (which does not exist, it must be <u>newly added to the root directory</u> of the TRLE project). Module scripts can be named freely, with any suitable file name accepted by the Windows file system.<br><br>
+    If you intend to make your custom particle effects, you should be writing them in the form of modules. There are obvious reasons why this approach is preferrable.<br><br>
+    The first is that the module system provides the benefit of scripting an effect once, but being able to reuse it several times. This way, you don’t have to resort to copy-pasting the same code into multiple level scripts. The second is if you intend to kindly share your very special effect with the rest of the TRLE builder community, module scripts are the most convenient way of doing so. As a developer, you can further add all kinds of parameters for end users to customize the effect.<br><br>
+    To begin a module script, it is customary to call a special, built-in function in the plugin’s API, <span class="var">createModule()</span>. This is not mandatory, Lua scripts can still work as modules without calling <span class="var">createModule()</span>.
+    <h4>Parameter tables – the developer perspective</h4>
+    A parameter table is a <a href="LuaManual.html#id6">lua table</a> that host various parameters of the module script. These parameters can be of any data type used by the particle plugin. This includes all of Lua’s native types (numbers, booleans, strings, functions and so on) as well as plugin data types like Vectors or Colors. These parameters can be then accessed by the builders who import the module into their level scripts.<br><br>
+    The parameter table should be written near the beginning of the script file, either above or below the local group variable declaration. If the parameters will be referred to in init or update functions, the parameter table should certainly appear in the module script prior to that.<br>
+    You must also remember that the parameter table should be <strong>returned</strong> at the end of the module script. The return instruction allows to assign the parameter table to a variable in a level script. Omitting this return will effectively drop the parameter table from the module, as if the module had no customizable parameters to begin with, <span class="var">require()</span> returning <span class="var">nil</span>.<br>
+    <div class="code">
+      local mygroup <span class="com">-- group variable declaration</span><br><br>
+      local parameters = {size = 50, sprite = 14} <span class="com">-- parameter table definition</span><br><br>
+      <span class="com">-- init and update functions, if applicable</span><br><br>
+      mygroup = createGroup(initFunc, updateFunc) <span class="com">-- group creation and assignment</span><br><br>
+      <span class="com">-- if the module has a parameter table, it must be returned at the end of the script</span><br>
+      return parameters
+    </div>
+    The parameter table takes the form of a record table, with key-value pairings:
+    <div class="code">
+      local parameters = {red = 245, green = 150, blue = 10, damage = 20, setsOnFire = true}
+    </div>
+    You have full freedom as to what parameters you place in the table, but you have one opportunity to do so – in the definition of the parameter table. You are not permitted to add new fields to the table later on. This is a consequence of the error prevention system devised for parameter tables.<br><br>
+    By default, Lua allows to add new records to a table by indexing the table with a new key and assigning a value to it:
+    <div class="code">
+      parameters.Red = 200<br>
+      parameters.blu = 100
+    </div>
+    Above, we can see that, according to the default rules, two new fields are added to the <span class="var">parameters</span> table, <span class="var">parameters.Red</span> and <span class="var">parameters.blu</span>. Neither of these fields existed in the original table (remember, case-sensitivity). Was the intention to access <span class="var">parameters.red</span> and <span class="var">parameters.blue</span> instead? To prevent such ambiguity and room for errors, the table cannot be extended with new fields after its initial definition in the module script. Lua will signal this with an appropriate error message.<br>
+    This hopefully will avoid the headaches of a builder (or even a developer) from accidentally adding a new field to a table (when the aim was to access an existing field) and then wondering why the script does not seem to work, as such a bug might be difficult to catch. Therefore, the very easy to follow rule is: put every parameter in the table in advance. You can always extend the table definition if you need more parameters.<br><br>
+    Apart from the above rules, there are no restrictions about how you should use parameters internally in the module. You can use them for anything you wish, in any assignment operation, any calculation, any function call, any comparison. They are not limited to just numbers, they can be of any type. To the builder, it should only be clear what the exposed parameter is responsible for, whereas you handle the logic tied to that parameter yourself.<br><br>
+    Of course, you may choose to make a module without any parameters. In such case you can either leave the parameter table empty: <span class="var">{}</span> or, better yet, opt out of defining and returning a table in the module altogether. In the latter case, the module code will be reduced to:
+    <div class="code">
+      local mygroup <span class="com">-- group variable declaration</span><br><br>
+      <span class="com">-- init and update functions, if applicable</span><br><br>
+      mygroup = createGroup(initFunc, updateFunc) <span class="com">-- group creation and assignment</span>
+    </div>
+    Such a module will return <span class="var">nil</span> from <span class="var">require()</span> in the level script. This is the preferred method making a module without parameters, only make a parameter table if the module will indeed have them.<br><br>
+    <h4>Hosting a particle group in the parameter table</h4>
+    The parameter table is mainly supposed to host parameters to be used inside the init and update functions. The default values set in the table are evaluated only once, during module import.<br><br>
+    You may be interested in giving builders the ability to change some settings of the particle group for the effect. Changes made to group settings inside the module are evaluated during module import as well, and never again. This is why code like below may not give you the results you might be expecting:
+    <div class="code">
+      <span class="com">-- effect.lua</span><br>
+      local mygroup<br>
+      local params = {draw = DRAW_SQUARE}<br><br>
+      <span class="com">-- init and update functions, if applicable</span><br><br>
+      mygroup = createGroup(initFunc, updateFunc)<br><br>
+      <span class="com">-- this will be done only on module import and not after</span><br>
+      mygroup.drawMode = params.draw<br><br>
+      return params
+    </div>
+    If you import this module, you may expect to be able to change the value of the <span class="var">draw</span> parameter in the level script and it will reflect in changing the <span class="var">drawMode</span> field for the group in the module.
+    <div class="code">
+      local effect = require("effect")<br>
+      effect.draw = DRAW_LINE <span class="com">-- this does not change mygroup.drawMode</span>
+    </div>
+    Unfortunately, this will not work. As was outlined above, the assignment <span class="var">mygroup.drawMode = params.draw</span> was made in the module code already, which is performed once, during import, when <span class="var">params.draw</span> had the original value set in the table and not the value we modified in the level script.<br><br>
+    However, there is a workaround that allows to access the group in the level script. It’s a bit strange, but instead of creating a local variable for holding the particle group, you create a parameter for it in the parameter table. We can sensibly name this parameter <span class="var">group</span>:
+    <div class="code">
+      <span class="com">-- effect.lua</span><br>
+      local params = {group = nil} <span class="com">-- we create a field with a dummy value like nil</span>
+    </div>
+    Notice that we have set <span class="var">group</span> to be <span class="var">nil</span>. It is not important what value it is, it can even be some number. We only need this value so <span class="var">group</span> becomes a valid, existing field in the parameter table. Notice we couldn’t just write group and assign no value, otherwise Lua wouldn’t know what <span class="var">group</span> means in such case. As effect developers we know that when we call <span class="var">createGroup()</span> and assign the return result to a local group variable, the variable stores the particle group afterwards. However, we are not using a local group variable, but a parameter in a table. We can again set the value of the <span class="var">group</span> parameter after calling <span class="var">createGroup()</span>. This will store the group inside the parameter table! Here is the code that demonstrates this:
+    <div class="code">
+      <span class="com">-- effect.lua</span><br>
+      local params = {group = nil} <span class="com">-- we create a field with a dummy value like nil</span><br><br>
+      <span class="com">-- init and update functions, if applicable</span><br><br>
+      <span class="com">-- the resulting particle group gets assigned to the param table field</span><br>
+      params.group = createGroup(initFunc, updateFunc)<br>
+      params.group.drawMode = DRAW_SQUARE<br><br>
+      return params <span class="com">-- params now host the group as a parameter</span>
+    </div>
+    As a result of this, in the level script we will now be able to do the following:
+    <div class="code">
+      local effect = require("effect")<br>
+      effect.group.drawMode = DRAW_LINE <span class="com">-- this indeed changes the particle group drawMode</span>
+    </div>
+    As level builders, we can now change group settings in level scripts!<br><br>
+    Keep in mind that with this method, the builder will have an unrestricted ability to change every setting of the group. There is no alternative to this, it would further complicate the module system with little benefit. If you need to expose the particle group settings for the module, this is the only way.<br><br>
+    <h4>Modules with more than one effect</h4>
+    You are not limited to having a single particle group within a module. If your effect is a pairing of two or more different particle effects (like a projectile that leaves a trail), then naturally you will need to use several particle groups within the module to achieve this. This is not a problem to the import system, it will be able to import your grouping of effects without any issues. However, I would advise to really do this just for the effects that are dependent on each other, i.e. where one cannot work without the other.<br><br>
+    If two effects are distinct enough that they can operate independently, then it makes more sense to turn them into independent module scripts. It costs nothing and makes everything easier. What if you later decide that you actually prefer to use only one of the effects for some level? Also, would you really enjoy dragging around a single, massive script file hosting hundreds of different, unrelated effects? Before the module system was put in place, this single, huge script file was precisely how it worked, and it was anything but convenient for the developer and the builder alike! Modules solve a lot of problems for both developers and builders.<br><br>
+    <h4>Modules within other modules</h4>
+    You can also import module files in the context of another module file. In this case, you simply use the <span class="var">require()</span> within the module, as you would use it in a level script.<br><br>
+    This “feature” is more a side-effect of the module system rather than something intended by the plugin’s authors. Nonetheless, it’s a possibility.<br>
+    We have not thought of many use cases for this nested module import. Maybe there can be a generally useful effect, which works as a dependency for other, more elaborate effects. You could then import the module with the generic effect into the secondary module which will use it.<br><br>
+    Perhaps you can find some opportunities to use this feature and let us know. :)
+
+    As was already hinted in the introduction to these tutorials, the plugin reads per-level lua script files. To be recognized and loaded by the plugin, the script file must be placed in the <span class="var">data</span> subfolder (together with all the level files) and bear the same name as the TR4 level file it is paired with, just with the extension <span class="var">.lua</span> instead of <span class="var">.tr4</span>. For example, if our level is called <span class="var">tut1.tr4</span>, the level script file must be called <span class="var">tut1.lua</span>. Another example, if we have the level <span class="var">coastal.tr4</span>, the corresponding script file should be named <span class="var">coastal.lua</span>.<br><br>
+    If the plugin doesn’t find a match between the current level and a script file, no script file will be loaded and the level will not use any effects. The level files and script files will also be mismatched in case of misspellings, e.g. <span class="var">tuts.lua</span> instead of <span class="var">tut1.lua</span>. Level scripts are not mandatory, i.e. lack of a level script file does not interrupt game flow (i.e. levels will still be loaded as normal).<br><br>
+    It’s theoretically possible to write code for effects directly in level script files (for example, by copy pasting them into the script file). Nevertheless, this is not an optimal solution, as the plugin is equipped with a powerful and convenient <strong>module system</strong>. Modules are isolated, independent Lua scripts that define a self-contained particle effect (or a grouping of related effects). This means that if you are (only) a level builder and prefer not to write much code, you don’t need to make effect scripts yourself, but may use effects distributed as modules from developers or other users.<br><br>
+    There is a substantially smaller subset of coding skills required when using modules made by others, but you still need to know some very general rules about Lua’s syntax. If you need a refresher, please re-read the section on <a href="LuaManual.html#id1">variables and data types</a> in Lua and (more optionally) on <a href="LuaManual.html#id4">functions</a> and <a href="LuaManual.html#id6">tables</a>.<br>
+    <hr>
+    <a name="id2"><h3>Importing modules</h3></a>
+    So far, we have reminded ourselves that in this plugin, there are level scripts and modules that we can use in them. But how do we introduce the modules into our level scripts?<br><br>
+    The foundation of the module import system is the <span class="var">require()</span> function. It’s a built-in function in the plugin’s API.<br><br>
+    The function takes one argument, which is the name of the module (as a string), but <u>without any file extension</u>. The plugin reads modules from the subfolder <span class="var">effects</span> (placed in the main game folder / <span class="var">Engine</span> folder if using TombIDE). This <span class="var">effects</span> folder is where you must place all modules used for your TRLE project, otherwise the plugin won’t see them.<br><br>
+    For the sake of example, say we have one module called <span class="var">ice.lua</span> and another called <span class="var">fire.lua</span> (both placed in the <span class="var">effects</span> folder). To import these modules into a level, in its associated level script (e.g. <span class="var">tut1.lua</span>) we write:
+    <div class="code">
+      require("ice") <span class="com">-- imports ice.lua from 'effects' subfolder</span><br>
+      require('fire') <span class="com">-- imports fire.lua from 'effects' subfolder</span>
+    </div>
+    Notice three aspects of the module import:
+    <ol type="1">
+      <li>we are calling the <span class="var">require()</span> built-in function. If the meaning of calling a function is not clear to you, please read up on <a href="LuaManual.html#funccall">calling functions with arguments</a>.
+      <li>we pass the name of the module as a string, but we are not specifying the <span class="var">.lua</span> file extension after the name of the module (this is because modules can come in two forms, text files and precompiled binaries with <span class="var">.luac</span> extension, more on those later)</li>
+      <li>the use of quotation marks <span class="var">""</span> or <span class="var">''</span> around the name of the module. This is because in Lua, strings need to be encased by single (<span class="var">''</span>) or double(<span class="var">""</span>) quotes. Either form is fine, but you <u>cannot</u> mix single quotes with double quotes (<span class="var">"fire'</span>). Also, be wary of putting any leading and trailing whitespace characters, such as in the string <span class="var">"ice "</span>.</li>
+    </ol>
+    Assuming the module code has no errors, this should be sufficient to import the effect into the level in most cases. That’s not the full story behind <span class="var">require()</span>, though. This function also returns the module’s <strong>parameter table</strong>, if the module has one.<br><br>
+    <h4>Parameter tables – the level builder perspective</h4>
+    Modules can (optionally) have <strong>parameter tables</strong>. These parameter tables are created by the module’s developer and can take any form, depending on the developer’s intentions. The main usage for these parameter tables is to have various aspects of an effect easily customizable, without having to dig through the many lines code in the module. The developer, through exposing appropriate parameters in the table, can allow the user to decide on the effect’s color. Or its size. Or its duration. Or its sprite texture. Or whether the particles set Lara on fire. Anything, really.<br>
+    To give this a TRNG analogy, you can think of them as a kind of <span class="var">Customize=</span> or <span class="var">Parameter=</span> command, but with Lua syntax.<br><br>
+    Parameter tables are, in fact, <a href="LuaManual.html#id6">lua tables</a>. To remind you, tables have fields, which you access by using the <a href="LuaManual.html#dot">dot operator</a>.<br><br>
+    How do you access the parameter table itself, after you import the module, though? Simple, it gets returned as the result of the <span class="var">require()</span> function. You can <strong>assign</strong> this result to a <a href="LuaManual.html#locals">local variable</a> to have access to the parameters.<br><br>
+    For the sake of example, we assume the developer of the module <span class="var">ice.lua</span> exposed parameters to change the color and ID of the moveable spawning the ice particles. This can be a table such as:
+    <div class="code">
+      {red, green, blue, emitterID}
+    </div>
+    This table of parameters will be returned from <span class="var">require('ice')</span>. To not lose our access to these parameters, we must <strong>assign</strong> the result of calling this function to some local variable, like so:
+    <div class="code">
+      <span class="com">-- this module has parameters, require returns a table</span><br>
+      local ice = require("ice") <span class="com">-- we assign the table to local var ice</span>
+    </div>
+    If the <span class="var">ice.lua</span> module hosts a parameter table, it will be assigned to the <span class="var">local ice</span> variable. Note that we are not forced to use the name <span class="var">ice</span>, however I believe it is a good convention to name this variable identically (or similarly) to the module, to know which module’s parameters you are accessing / changing.<br>
+    In our example, the developer exposed the parameters: <span class="var">red, green, blue, emitterID</span>, the first three of which describe the color for the particle, and the last one is the NGLE script ID of the moveable which will be emitting the particles.<br><br>
+    We can access these parameters through the assigned <span class="var">ice</span> variable (holding the table returned by <span class="var">require()</span>) and assign them our chosen values:
+    <div class="code">
+      <span class="com">-- this module has parameters, require returns a table</span><br>
+      local ice = require("ice") <span class="com">-- we assign the table to local var ice</span><br>
+      <span class="com">-- we can access each parameter individually</span><br>
+      ice.red = 153 <span class="com">-- set red to 153</span><br>
+      ice.green = 217 <span class="com">-- set green to 217</span><br>
+      ice.blue = 234 <span class="com">-- set blue to 234</span><br>
+      ice.emitterID = 10 <span class="com">-- set emitter ID to 10</span>
+    </div>
+    As you see, we can customize the effect with relative ease, as long as the developer provided these parameters for us.<br><br>
+    Parameter tables can take any form. Its entirely up to the developer what kind of parameters are exposed to the end user (i.e. the builder). They can include things like dimensions of the area of an effect, how frequently particles will spawn, the positions, velocities, etc.<br><br>
+    As a level builder, you are only able to change the parameters exposed by the developer of a module. You cannot add your own parameters without changing the code of the module. Lua will signal an error if you try to add or access a parameter which is not present in the module. Remember also that Lua is case-sensitive, so <span class="var">ice.Red</span> does not mean the same thing as <span class="var">ice.red</span>. As a consequence of this, Lua will also give errors due to misspellings of parameter names.<br><br>
+    It is possible for a module to have no associated parameters at all, in which case <span class="var">require()</span> will return the special lua value <span class="var">nil</span> instead of a table. In these cases, no parameters will be accessible after importing the module. A lack of a parameter table indicates that the developer did not intend any customizable parameters for the effect and you cannot change any aspect of the effect without changing the module code itself. When a module has no parameters, you can simply call <span class="var">require()</span> without assigning the result to a variable, it is redundant when the module does not have parameters:
+    <div class="code">
+      <span class="com">-- this module has parameters so require returns a table</span><br>
+      local ice = require("ice") <span class="com">-- we assign the table to local var ice</span><br><br>
+      <span class="com">-- this module has no parameters, require returns nil</span><br>
+      require("fire") <span class="com">-- there is nothing to access so no variable necessary</span>
+    </div>
+    <h4>Importing a module more than once</h4>
+    It’s possible to import the same module more than once within the same level script:
+    <div class="code">
+      local ice1 = require("ice") <span class="com">-- first copy of the ice effect</span><br><br>
+      local ice2 = require("ice") <span class="com">-- second copy of the ice effect</span>
+    </div>
+    The above code will import the <span class="var">ice.lua</span> module as <strong>separate copies</strong>, with their own parameter tables stored in <span class="var">ice1</span> and <span class="var">ice2</span>. You can utilize this if you want to reuse the same effect more than once, but (assuming the effect has parameters), have a different variant of the effect, e.g. a different color:
+    <div class="code">
+      local ice1 = require("ice")<br>
+      ice1.red = 153<br>
+      ice1.green = 217<br>
+      ice1.blue = 234<br>
+      ice1.emitterID = 5<br><br>
+      local ice2 = require("ice")<br>
+      ice2.red = 165<br>
+      ice2.green = 170<br>
+      ice2.blue = 225<br>
+      ice2.emitterID = 6
+    </div>
+    With the above code, you will get two nearly identical versions of the effect, but each will have its own unique color values and be assigned to a different moveable emitter (5 for <span class="var">ice1</span> and 6 for <span class="var">ice2</span>).<br><br>
+    If you are just a builder and not interested in the developer aspects of writing modules, the relevant information for level builder’s purposes ends here.<br>
+    <hr>
+    <a name="id3"><h3>Module scripts</h3></a>
+    <a name="id4"><h3>Guidelines for writing modules</h3></a>
+    If you want to use your modules exclusively by yourself, it does not matter how you choose to write them. As long as you understand what is going on in the module, it is your business.<br>
+    Differently, if you would like to share your efforts with the community of builders, I would encourage to adhere to stricter guidelines for how a module should be written. Below are some of my ideas.
+    <ol type="1">
+      <li>It goes without saying, but the module should be working, first of all. The code should not produce errors and should also not cause lags, FPS drops or crashes. Otherwise, chances are the module will not be held in high regards by other builders who will avoid your module.</li>
+      <li>When you add parameter tables to your effects, make sure that the purpose of each parameter is clear enough and the parameter indeed does what it is supposed to. Of course, names should be short, but at the same time remain descriptive. Does the parameter change the spawn rate of the particles? Then <span class="var">spawn_rate</span> gives a better indication than something like <span class="var">sr</span>.</li>
+      <li>Be mindful of what default values you set for the parameters. In the ideal scenario, the effect should be fully functional after importing, even if the builder does not change any of the default parameter settings. Of course, there are exceptions when this is not completely possible, for example if the effect requires a concrete NGLE index of a moveable and the default value may not be suitable, since it is highly variable what object (if any) has that specific index in a level. In such case, it should be communicated explicitly that the module has a mandatory parameter that needs to be changed by the builder in every circumstance.</li>
+      <li>Your module’s parameter table can host parameters of any data type supported by Lua (numbers, strings, functions, other tables, etc). However, casual builders with little knowledge about programming or Lua will be more likely to understand if a parameter is some number in the range <span class="var">1 - 10</span> rather than if it’s a Lua function or some other complex data. This doesn’t imply you shouldn’t expose such parameters in the table! If you want to give users the option to change functions in the module, you can certainly do so. Just be sure to provide suitable default behavior in you module, in case the user does not know how to change the function.</li>
+      <li>Finally come the aspects of communicating the results accomplished by your module to other builders. What does it do? How can it be used? Can it be customized by parameters? What is the expected range of values for these parameters? Are there any bugs or aspects of the module that are ill-behaved? Be sure to give all such information to the potential users of the module so they know what to expect.</li>
+      <li>The module itself must be in text form, so the code can be examined directly. Modules in precompiled form should not be accepted due to safety concerns.</li>
+    </ol><br>
+    These are only some of my own personal thoughts about how module sharing between community members should look like. It would be wonderful to have a repository of module scripts created by members of the TRLE community, but some form of quality control would be necessary to make this feasable, hence I have given some of my own ideas on how to approach this matter.<br>
+    <hr>
+    The above covers virtually everything there is to know about the level scripts and module scripts as a developer. In the next chapter, we will be talking about <strong>mesh particles</strong>.<br><br>
+    <table width=100%>
+      <tr>
+        <td><a href="Chapter4.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+        <td style="text-align: right"><a href="Chapter6.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+  </body>
+</html>

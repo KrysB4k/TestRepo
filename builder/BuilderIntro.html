@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Builder Path</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <h1>You’ve chosen the Builder Path</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="../Index.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align:right"><a href="Chapter1.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+    <br>
+    <p>A reasonable choice.<br><br>
+    Perhaps the idea of coding your own particle effects seems uninteresting or even a bit daunting to you. That’s perfectly understandable, though! Coding requires a specific style of thinking and a technical aptitude, it certainly isn’t for everyone. But if that’s the case, there still remains a <i>tiny</i> amount of Lua script needed to use this plugin, even if you do not intend to code your own effects from scratch. Fortunately, it’s so trivial that if you were able to figure out TRLE building, you will have absolutely no issues with learning this either.<br><br>
+    A builder makes use of module scripts created and shared by other users in the community and integrates them into personal projects. Module scripts contain the Lua code needed to implement an effect, but as a builder, you do not need to understand any of it. You simply place the ready-to-use module script files in a special folder called <span class="var">effects</span>, then import chosen modules into the level in a specific, yet very simple and intuitive process.<br><br>
+    The <strong>Builder Path</strong> explains the process of using this plugin in great detail. Nothing to be afraid of, you’ll be able to add particles to your levels in no time!</p>
+    </p>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. How to use this plugin?</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. The particle system</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. What kinds of particles this plugin supports</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. The two user interfaces</a><br>
+    </strong>
+    <hr>
+    <a name="id1"><h3>How to use this plugin?</h3></a>
+    <p>The base requirement for this plugin is using it with the TRLE/TRNG engine (<strong>Tomb Raider Next Generation</strong> by Paolone), TRNG version 1.3.0.7. The plugin must be installed correctly in the TRLE project.<br><br>
+    If using the <strong>TombIDE project manager</strong> from the <strong>Tomb Editor</strong> suite, you install the plugin via the <strong>Plugin Manager</strong> tab by clicking the <strong>Install Plugin from .zip archive</strong> button and selecting the <strong>Plugin_ParticleSystem.zip</strong> archive in the file explorer window. If using NG Center, you install it by going to the <strong>Plugins</strong> tab, clicking <strong>Install New Plugin</strong>, choosing the <strong>Install From ZIP</strong> option and selecting <strong>Plugin_ParticleSystem.zip</strong>. If the installation was successful, you are ready to use this plugin.</p>
+    </p>
+    <hr>
+    <a name="id2"><h3>The particle system</h3></a>
+    <p>We should start off by answering the pressing question – <strong>what IS a particle system</strong>?<br><br>
+    I won’t be sophisticated and come up with my own definition, I’ll just lazily quote the <a href="https://en.wikipedia.org/wiki/Particle_system" target="_blank">Wikipedia article on particle systems</a>:
+    <blockquote cite="https://en.wikipedia.org/wiki/Particle_system"><i>
+      A particle system is a technique in game physics, motion graphics, and computer graphics that uses many minute sprites, 3D models, or other graphic objects to simulate certain kinds of “fuzzy” phenomena, which are otherwise very hard to reproduce with conventional rendering techniques – usually highly chaotic systems, natural phenomena, or processes caused by chemical reactions.
+    </i></blockquote>
+    Quite a mouthful. The key point to take away is that it is a technique where various phenomena are represented with numerous, individually simulated and rendered entities (e.g. sprites or 3D models). We don’t need to get into the nitty-gritty details just yet, such an overview is a succint, cogent way to kick off the topic of particle systems.<br><br>
+    What kind of phenomena could be represented by using particle systems? The Wikipedia article further continues:
+    <blockquote cite="https://en.wikipedia.org/wiki/Particle_system"><i>
+      (…) examples include replicating the phenomena of fire, explosions, smoke, moving water (such as a waterfall), sparks, falling leaves, rock falls, clouds, fog, snow, dust, meteor tails, stars and galaxies, or abstract visual effects like glowing trails, magic spells, etc. – these use particles that fade out quickly and are then re-emitted from the effect’s source.
+    </i></blockquote>
+    Okay, we now have a clearer picture of what kind of visual effects could be achieved with the use of a particle system.</p><br>
+    </p>
+    <h4>How is this relevant to us?</h4>
+    <p>The goal of the <strong>Particle System plugin</strong> is to add a method of implementing particle systems as described, where users can create their own simulated effects for TRLE levels, including but not limited to the phenomena listed in the latter quote. I must emphasize that particle effects aren’t just for looks and atmosphere, but can also be inseparable elements of gameplay. The plugin’s module interface provides the possibility to add ranged attacks to melee enemies, give Lara magic powers, set up deadly traps or to create new types of weapons to be used against baddies in combat.<br><br>
+    As a builder who is not interested in developing custom effects, you will have less direct contact with the particle system than a module coder would. However, the modules leverage the particle system concept in order to implement custom particle effects in the TRLE engine, hence it is worth knowing regardless.<br><br>
+    In this series of tutorials, I will give a builder-centric perspective on how to use custom modules in your TRLE projects. I believe it’s very easy to get the hang of it, but it does require some understanding of where modules should be installed and how to import them into your levels, so that is exactly what we will be discussing next.<br>
+    </p>
+    <hr>
+    <a name="id3"><h3>What kinds of particles this plugin supports</h3></a>
+    <p>The plugin supports two main “types” of particles, which are:
+    <ul>
+      <li>Sprite particles – represented by sprite textures taken from a sprite slot (<strong>DEFAULT_SPRITES, MISC_SPRITES, CUSTOM_SPRITES</strong>)
+      <li>Mesh particles – represented by meshes taken from any of the available moveable slots (except static slots and the aformentioned sprite slots)
+    </ul>
+    As a result, effects can rely on both 2D sprite particles and 3D mesh particles (even simultaneously, e.g. a mesh particle with a trail of sprite particles). Sprite particles further support textureless rendering modes, which can make particles look like blank squares, lines or arrows, and different blending modes, enabled by the “New blending modes” FLEP patch.<br><br>
+    Sprite particles can not only be present in the 3D level map, they can also be rendered as a 2D overlay effect on the game screen, extending the idea of particles beyond what was possible in the classic TRLE engine!<br><br>
+    That being said, one should not get too carried away by the new addition of custom particles. This engine cannot efficiently render many objects, as it does not rely on today’s powerful GPU cards (high-res, high-poly graphics technology was unfathomable in the 90’s, when the engine code was written). Again, manage your expectations and do not anticipate the potential of Unity, Unreal or Godot in the retro TR engine.
+    </p>
+    <hr>
+    <a name="id4"><h3>The two user interfaces</h3></a>
+    <p>There are two distinct, albeit connected scripting interfaces that come with using this plugin, reflecting the two user archetypes. These two interfaces are the:
+    <ul>
+      <li>module script interface – for coders</li>
+      <li>level script interface – for builders</li>
+    </ul>
+    <br>
+    The module interface is intended for coders of particle effects, who will use Lua scripting to build custom effects from scratch. After they come up with the code, the .lua file in which the effect is defined will become an independent, reusable <strong>module</strong>. These modules can be placed in the folder <span class="var">effects</span>. This folder should be located inside the working directory of the TRLE project/levelset, alongside folders such as <span class="var">audio</span> or <span class="var">data</span>. In case of projects managed by TombIDE, this will be inside the <span class="var">Engine</span> folder. Of course, if the <span class="var">effects</span> folder does not exist, it must be newly created (and it must be named <span class="var">effects</span> or <span class="var">Effects</span>, mind the ‘s’ at the end). Any number of modules with user-made effects can be present in the <span class="var">effects</span> subfolder, the plugin places no restrictions.<br><br>
+    The level script interface is designed for builders (that’s you!) who want to use effects from modules created by the coders. Each level file (.tr4) can be associated with any number of <strong>level script</strong> Lua files from the <span class="var">levelscripts</span> (single word, no space inbetween) subfolder. Note that just like <span class="var">effects</span>, this folder must be located in the same directory as the <span class="var">audio</span> and <span class="var">data</span> folders and must be created, if it does not exist. Linking level script files to levels is not mandatory – if there is no pairing between a level file and a script file, the level will still run as normal, however no custom effects shall be used for the given level.<br><br>
+    Builders can import module scripts placed in the <span class="var">effects</span> folder into the level scripts, allowing to reuse the same effect(s) numerous times in across different levels. Furthermore, if the module coder provided parameters for the module, builders are able to modify these parameters after importing said module. This is similar to using <span class="var">Customize</span> or <span class="var">Parameters</span> scripts in TRNG for some features, in the sense that it modifies chosen aspects of the imported effect. The only major difference is that it’s done through Lua instead of TRNG script.
+    </p>
+    <hr>
+    <p>After this short introduction, hopefully you have a better understanding of what the <strong>Particle System Plugin</strong> is meant to accomplish for you as a level builder, and that you will be able to use modules developed by coders. In successive chapters, we will dive into the practicals of using this plugin’s module system – installing modules, importing them into levels, module customization (if customizable parameters were provided by the module coder) and how to protect the integrity of modules used in your project (preventing players from cheating and softlocking themselves). Onwards we go!</p><br>
+    <table WIDTH=100%>
+      <tr>
+      <td><a href="../Index.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <td style="text-align:right"><a href="Chapter1.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>
+      </tr>
+    </table>
+  </body>
+</html>

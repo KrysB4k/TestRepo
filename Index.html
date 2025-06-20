@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Introduction</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="start/intro.css"/>
+    <script src="start/parts.js"></script>
+    <canvas id="draw" onclick="cycleMode()" style="border-bottom: 10px ridge gray">
+      <script>
+        "use strict";
+        canvas = document.getElementById("draw");
+        canvas.width = window.innerWidth;
+        canvas.height = 500;
+
+        ctx = canvas.getContext("2d");
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        offscr = new OffscreenCanvas(128, 128);
+        offctx = offscr.getContext("2d");
+
+        setupPartArray();
+
+        setInterval(createParticleLoop, 20);
+        setInterval(manageUpdateDrawLoop, 20);
+      </script>
+    </canvas>
+    <noscript>
+      <img style="display: block; margin-left: auto; margin-right: auto;" src="start/logo_black.png">
+    </noscript>
+    <div style="margin: 48px;">
+      <h1>Welcome to the particle scripting tutorial series!</h1>
+      <p>
+      The <strong>Particle System Plugin</strong> adds a very flexible particle engine to the world of Tomb Raider Level Editor. In other words, it introduces a dynamic particle scripting interface for the creation of user-defined particle effects, somewhat reminiscent of Unity, Unreal or other popular game development suites (though notably offering less functionality and far less performance than them, due to restrictions imposed by the aged TRLE engine). The particle system is interfaced through a dedicated <strong>Particle Scripting API</strong> (<i>Application Programming Interface</i>) built into the plugin, which utilizes the <strong>Lua</strong> programming language, separate from the ordinary TRNG scripting.<br><br>
+      The contents of the manual is a series of text-based tutorials, assisted with visual aids including graphics, diagrams, interactive schematics, animated GIFs and videos. My goal is to show you around the particle system and the scripting necessary to utilize it. The tutorials are aimed both at TRLE users who have some background with Lua or programming, as well as users who don’t have any and are starting as novices. The only requirement, aside from an eagerness to learn, is to have some well-established knowledge about TRLE and TRNG itself, so the target audience are seasoned level builders who are looking to add new kinds of visual effects (and more!) to their levels. The tutorials are not really suitable for newcomer builders though, as an assumption is made that the reader is already familiar with the classic level building process for TRLE, the essential file formats involved in building (such as .wad or .wad2, .prj or .prj2, .tr4), what sprite textures are and where they can be located in the WAD files, etc. I would not advise continuing if you are not a knowledgable builder who has been tinkering with the level editor for at least a few months and has dabbled with TRNG scripting to some extent (I don’t want to discourage or hold you off of course, but following along may prove tough, otherwise!)<br><br>
+      The tutorials try to showcase many features of the plugin and its scripting ecosystem by providing practical learning examples utilizing these features. Nonetheless, they do not show absolutely everything there is to know, otherwise this tutorial series would become ridiculously long (it’s considerably lengthy as it is now). Instead of trying to forcibly cram everything into the tutorials, the <strong>Plugin API documentation</strong> is meant to be the supplementary source of information for whatever has been omitted, giving a dry and technical, but rigorous coverage (TRNG users: think of it as the equivalent of the <strong>Reference</strong> tab in NG Center, where every script command and mnemonic constant is defined and explained).<br><br>
+      The first section of this introduction will discuss why Lua was the optimal choice for this plugin, despite most TRLE builders not being familiar with it. The second section will introduce the two facets of the plugin’s scripting interface, reflecting two archetypes of potential users for this plugin, those being the <strong>“builder”</strong> (a person that uses effects already created by other users) and the <strong>“coder”</strong> (a person writing their own effects with Lua code). Of course you, as a real user, may be a builder, a coder or even both at once. From there, you can decide which of the two roles you see yourself in. The manual splits off into dedicated versions, one for the “builder” role and the other for the “coder” role. The builder’s manual is shorter in content, on account of the builder’s interface being a simpler one to use. The coder must have knowledge of both interfaces, on top of understanding coding principles, therefore the coder’s manual is much more robust and extensive.
+      </p>
+      <hr>
+      <h2>Sections</h2>
+      <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. The elephant in the room: why Lua and not TRNG scripting?</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Choose your path: builder or coder?</a><br>
+      </strong>
+      <hr>
+      <a name="id1"><h3>The elephant in the room: why Lua and not TRNG scripting?</h3></a>
+      <p>Understandably, the decision to have dedicated scripting for what seems to be “just another plugin”, in a language mostly unfamiliar to the target audience of TRNG level builders may seem off-putting. However, we (the authors of this plugin) can assure you that the decision to use Lua was for the best.<br><br>
+      The initial development phases of this plugin indeed relied exclusively upon TRNG script commands, such as <span class="var">Customize</span> and <span class="var">Parameters</span>. Unfortunately, due to the hindering nature of TRNG syntax and lack of dynamic scripting features, working with the particles in this environment made for a very clunky interface that hampered the potential this plugin had. Since TRNG relies on using numbers, flags and constants which cannot change after building the script, it becomes difficult to implement things like random values or convey complex logic effectively. Additionally, using TRNG would require to create countless different CUST_ or PARAM_ constants, each describing a specific spawn shape or property of the particle.<br><br>
+      For example, say we would like a feature where particles are spawned in a circular shape. We could have a <span class="var">PARAM_PARTICLE_CIRCLE</span> that allows to set up the parameters (e.g. radius, position) of this circle. What if someone would want an oval shape next? <span class="var">PARAM_PARTICLE_CIRCLE</span> would have to be modified to accomodate this stretching or squashing of the circle, or a new <span class="var">PARAM_PARTICLE_OVAL</span> constant would have to be added. Then, someone would like a spiral shape, in addition to the circle and oval, requiring yet another constant. Then for a spherical shape, we would need yet another constant. Then another constant for a box shape. Soon enough, these PARAM_ constants would be in the hundreds or even thousands, each with dozens of parameter fields, yet still not account for every possible kind of shape or property of the particles.<br><br>
+      Another factor deciding against TRNG scripting is that the syntax does not make it explicitly obvious which value accounts for what property. Let’s look at a real example, a PARAM_ constant that used to be in one of the first iterations of the plugin:
+      <div class="code">
+        Parameters= PARAM_MAGIC_FIRE, 1, 160, 64, 128, 1, 255, 1, 128, 64, 128, 1, 196, 64, 160, 64, 96, 64, 196, 64
+      </div>
+      Everything clear what this <span class="var">PARAM_MAGIC_FIRE</span> script does and what these miscellaneous jumbled numbers are supposed to mean? Probably not... to have a glimpse of an idea, you’d have to look up the Reference entry for <span class="var">PARAM_MAGIC_FIRE</span> to see the syntax, or look at the prompt in NG Center or TombIDE. Even then, it can still be really confusing, with so many parameters listed one after another in a single line. Sadly, when you have so much customizability in a single feature, the TRNG syntax becomes unwieldy and hard to read. And this is just a single PARAM_ constant we’re dealing with. Meanwhile, there would probably be several hundreds or thousands of <span class="var">PARAM_</span> constants, each with a comparable number of unique parameters to look up. There are simply far too many variable aspects for TRNG script syntax to be effective anymore, so it becomes chaotic and difficult to manage. Finally, all of these constants would have to be implemented by the developers of the plugin. Casual plugin users would not be able to add their own functionalities, unless they would modify the source code of the plugin and recompile it all by themselves. And if you think Lua is difficult, you have not seen C++ …<br><br>
+      Designing custom particle effects benefits greatly from dynamic scripting features that TRNG simply lacks. Keeping the particle interface within the TRNG realm would only hold back this plugin’s true capabilties. Exactly for this reason, we turned to Lua, which combines all the descriptive possibilities TRNG could ever offer, augmenting it with useful programming concepts, such as variables, conditions, loops and functions. It really cannot be overstated how much this increased the usability of the plugin and the features that come with it. In fact, the plugin was pushed into completely new territories as a result of adopting Lua, becoming a much bigger and ambitious project than it was meant to be at first. All of it culminated into the powerful particle engine, which you are reading the manual of right now.<br><br>
+      Of course, there will always be those users for whom programming syntax remains too esoteric to grasp. A possible middle-ground solution would be to implement a visual interface for designing particle effects. Unfortunately, these graphical user interfaces take a long time to develop. Therefore, the current particle system interface remains entirely based on writing textual scripts (although we don’t rule out a graphical interface at some unspecified point in the future). To foster a wider user base, it was decided to separate the plugin’s scripting interface into two distinct, but correlated interfaces: one for the user who will design particle effects with Lua code (hereby referred to as the “coder”) and the other for the user who will make use of effects created by coders (hereby referred to as the “builder”).<br><br>
+      The “builder” interface still uses Lua, albeit it’s more simplified, relying less on coding/programming knowledge and more on “using a keyboard” knowledge (if you ever edited a <span class="var">[Level]</span> script section in <span class="var">script.txt</span> and can use a text editor like Notepad, you will do just fine). The actual users of the plugin can of course be coders, builders, or even both at the same time: implementing custom effects and using them in their personal TRLE projects.</p>
+      <hr>
+      <a name="id2"><h3>Choose your path: builder or coder?</h3></a>
+      <p>As mentioned above, there are two separate, but connected scripting interfaces that are present in the plugin. These two interfaces are the:
+      <ul>
+        <li>level script interface – for builders</li>
+        <li>module script interface – for coders</li>
+      </ul>
+      Depending on how you intend to use this plugin, you may use either one of the interfaces, or even both at once.<br><br>
+      <h4>Builder path</h4>
+      The level script interface is stripped-down, using the bare minimum of Lua and almost no programming. It is designed for builders who want to use effects created by coders (though again, I’m emphasizing these are not mutually exclusive roles). Each TR4 level file (.tr4) can be associated with any number of <strong>level script</strong> Lua files present in a special <span class="var">levelscripts</span> subfolder (inside the working directory, which is contained in <span class="var">Engine</span> in case of TombIDE, alongside other folders such as <span class="var">audio</span> or <span class="var">data</span>). The level scripts are associated with the TR4 levels through a TRNG <span class="var">Customize=</span> script command in the <span class="var">[Level]</span> section. Such level script files are not mandatory – if there is no pairing between a level file and any Lua script file, the level will still run as normal, however no custom effects shall be used for the given level. Any number of level script files can be present in the <span class="var">levelscripts</span> subfolder, without restrictions.<br><br>
+      The main purpose of level scripts is to import and setup <strong>module scripts</strong>. Module scripts are Lua scripts containing the code implementing an effect and are created by coders. Modules reside in another sub-folder called <span class="var">effects</span> (alongside <span class="var">audio</span>, <span class="var">data</span> and <span class="var">levelscripts</span>). As a builder, you can import module scripts (available in the <span class="var">effects</span> folder) within the level script files (placed in <span class="var">levelscripts</span>), allowing you to reuse the same effect(s) numerous times in various levels of your TRLE adventure, as needed. Any number of module script files can be present in the <span class="var">effects</span> subfolder, there are no restrictions for the amount of modules available to import.<br><br>
+      <h4>Coder path</h4>
+      The module interface is intended for coders of particle effects, who will use more extensive Lua scripting to build custom effects from scratch. The .lua file containing the code for an effect becomes an independent, reusable <strong>module</strong>, which can then be placed in the <span class="var">effects</span> folder by builders (you may simultaneously be the builder too, of course). Inside module scripts, you have most of the Lua scripting language at your disposal (with certain restrictions), together with the plugin’s scripting API. You can also add parameters to the modules, which permit to change certain aspects of the module without needing to change its code directly. Parameters introduce an easy way of customizing effects for builders who want to use them.<br><br>
+      Without sugarcoating it, the process of learning particle scripting is more challenging, particularly for users with no prior experience in programming. That being said, the coder path tries to accomodate people with varying skill levels in coding, including those with none, giving everyone a fair shot. Besides, having the freedom to design any kind of effect, tailored specifically to one’s gameplay ideas or needs, is nothing to scoff at. You can try your strengths in the coder path and then switch to the builder path, if you decide that coding does not suit you. However, I would encourage you to at least give it an honest attempt, especially if you already know your way around TRNG scripts.<br><br>
+      Being a module coder requires familiarity with the level script interface too. In spite of that, there is no need for you to read the builder path first, everything you should know is covered in the coder path.<br><br>
+      <h4>It’s up to you</h4>
+      The scripting process for the plugin is vastly different for the builder (easy) and the coder (difficult).<br><br>
+      As a builder, you import premade modules stored in the <span class="var">effects</span> folder into a level script, optionally adjusting certain parameters (kind of like TRNG), then associate such level scripts with the level via a special <span class="var">CUST_LEVEL_SCRIPTS</span> command. This is a stark contrast from scripting particle effects themselves, which requires understanding a much broader extent of the plugin’s API. Because of these differences, the “builder” user group and “coder” user group need tailored explanations that are catered to them. This is done intentionally to avoid confusion as to what constitutes “builder” knowledge, and what constitutes the more extensive “coder” knowledge.<br><br>
+      Below you can decide which path to go down, depending on which role you see yourself in more (you can check out both to see what each has to offer)!<br><br>
+      <table width=50%, style="margin-left: auto; margin-right: auto; border-collapse: collapse;">
+        <tr>
+          <td><a href="builder/BuilderIntro.html"><strong style="font-size:200%">Builder Path</strong><br>
+          I want to use modules made by others</td>
+          <td><a href="coder/CoderIntro.html"><img src="start/coderpath.png"></td>
+        </tr>
+      </table>
+      <br><br><br>
+      Alternatively, as an experienced coder, you can go directly to the <strong>Particle Scripting API documentation</strong> with the link below:<br><br>
+    </div>
+  </body>
+</html>

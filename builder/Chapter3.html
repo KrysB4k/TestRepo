@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3 – Precompiling Lua files and Script integrity</title>
+  </head>
+  <body text=#000000 bgcolor=#FFFFFF link=#0000FF alink=#0000FF vlink=#0000FF>
+    <link rel="stylesheet" href="styles.css"/>
+    <h1>Precompiling Lua files & Script integrity</h1>
+    <table width=100%>
+      <tr>
+      <td><a href="Chapter2.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+      <!-- <td style="text-align: right"><a href="Chapter4.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td> -->
+      </tr>
+    </table><br>
+    <p>If you reached this far in the builder’s tutorials (and assuming you did not just skip over the chapters), you’re well aware that Lua scripts are plain-text files, which means they can be opened and edited at any time. Even after you’ve finished working on your levels. Even after you have packaged those levels and uploaded them to a hosting site. Even when players are playing your released project... oh dear!<br><br>
+    We weren’t born yesterday, were we? We know that for every hundred players that respect the level builder’s vision and play the game as intended, there will inevitably be a few that don’t care for the intended way of playing the game. This has always been the case and could never be entirely prevented. But it has become especially apparent and blatant in recent years, with some players outright deleting certain plugin DLL’s from the game folder, because they did not like the changes that the plugin added (and not even considering the fact that they may potentially softlock or break the game by doing so).<br><br>
+    It’s not much of a stretch to expect certain players to tamper with Lua script files too, knowing they’re plain text and can be opened and edited in good ol’ Notepad. Or even remove these files altogether. A player may decide to open up a script responsible for a damaging projectile, change some numbers and make the projectile heal Lara, instead. Or perhaps another module bestows upon Lara a special magic power for combat, as an alternative to weapons, but the player makes the power insta-kill every single enemy, or give Lara infinite mana to spam the attack. Or a player may just disable a trap by removing the responsible module import in the level script. Plenty of opportunities for unruly players to cheat through your levels, or softlock themselves (and put the blame on the builder, of all people)!<br><br>
+    We would need a way to make this tampering process less straightforward, such that the Lua script files cannot be simply edited in Notepad (or some other text editor of choice), and ensuring that any missing script files prevent the game from being played. Lucky for us, there is a solution!
+    </p>
+    <hr>
+    <h2>Sections</h2>
+    <strong>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id1">1. Two script forms – text or binary</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id2">2. Precompiling scripts</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id3">3. Using the precompilation tool (LuaCompiler)</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id4">4. Enforcing script integrity</a><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#id5">5. Recommended workflow for precompiling scripts</a><br>
+    </strong><hr>
+    <a name="id1"><h3>Two script forms – text or binary</h3></a>
+    <p>I have briefly signalled that there are actually two different file extensions that Lua script files can have. The first extension is the familiar <span class="var">.lua</span>, the other is the more elusive <span class="var">.luac</span>. You will not notice this second file extension in the dropdown menu of Notepad++ (if you’re using it). This is actually expected, due to how these two file formats differ.<br><br>
+    While <span class="var">.lua</span> files are the plain-text script files, editable in any text editor, <span class="var">.luac</span> files are <u>binary files</u>. If you know a thing or two about computers, you know that binary files are not as easy to edit, at least not with a dedicated tool that can parse them. This would mean that converting the script files (both module and level scripts) to binary would make modifying them more of a challenge.<br><br>
+    Module scripts as well as level scripts can have <u>either</u> of these two extensions. It is for this exact reason that the <span class="var">require()</span> instruction expects a file name of the module without the extension, likewise the ExtraNG string for the level script. The plugin can read both and allows for either form to be present in the respective folders for modules and level scripts!<br><br>
+    However, it does prioritize one over the other. If there are two modules with the same name, but one is in plain-text form with the <span class="var">.lua</span> extension and the other is in binary form with the <span class="var">.luac</span> one, the plugin will prioritize loading the plain-text file. This is important to note in the off-chance that the actual code in both files happens to be different. A similar thing takes place with level scripts. When the level is loaded, the plugin prioritizes searching for the <span class="var">.lua</span> level scripts first, then the <span class="var">.luac</span> level scripts. There is no particular reason for this prioritizing, but in the corner case that both file types are present with an identical name, we (the plugin devs) simply had to let one prevail over the other, and we chose the plain-text file to come first.<br><br>
+    Aside from the loading priority, the plugin does not see a difference between a <span class="var">.lua</span> and a <span class="var">.luac</span> file. The contents that is relevant to the plugin remains the same in either file. Due to how the standard Lua runtime is implemented, when it reads plain-text script files, it compiles them to the binary form during runtime regardless. If the file is already in binary form, though, it is removing one extra step that the Lua runtime does. We say this binary script file is <strong>precompiled</strong>.
+    </p>
+    <hr>
+    <a name="id2"><h3>Precompiling scripts</h3></a>
+    <p>Precompiled scripts, as mentioned, are script files that are already in binary form. These binary files have the <span class="var">.luac</span> extension (the ‘c’ at the end is presumably for “compiled”). Aside from the loading priority described in the section above, the plugin does not prefer text files over binary files. If anything, the precompiled file is faster to load, as the Lua runtime does not have to compile it first. However, this speed boost due to precompilation is negligible and not the main reason why you would precompile a script file.<br><br>
+    The main reason has already been stated – binary files are a lot harder to edit than text files. If you open a <span class="var">.lua</span> in any text editor, you get to see the entire code in text form and make any desired changes to it. If you try to forcibly read a binary file through Notepad++, what you get is a bunch of random, indecipherable characters. This is because the binary file no longer consists of ASCII or Unicode text characters, but of a binary byte sequence. Notably, one cannot prevent still making edits to a file in this form, but it certainly takes more effort and skill not to break anything and corrupt the file in the process. Hopefully, this will discourage all but the most determined players from tampering with script files in a custom level set.<br><br>
+    </p>
+    <h4>Precompilation is NOT encryption</h4>
+    <p>I have to give a very explicit disclaimer here, which is to clarify that precompilation does nothing to obfuscate the contents of the script file, aside from taking the code from human-readable form (text) to machine-readable form (bytes). It doesn’t perform any sort of encryption algorithm on the script files. This means that you can still take a <span class="var">.luac</span> binary file and go to a website hosting a Lua decompiler, like <a href="https://luadec.metaworm.site/" target="_blank">https://luadec.metaworm.site/</a>. The binary script will be converted back to its text form, missing only some originally used identifiers and comments. A determined player may still use such websites to understand or even “reverse-engineer” the binary file back to a text file, for easy editing.<br><br>
+    So why don’t we just implement encryption? Because we, the developers of this plugin, are not in favor of such solutions. As much as we understand the argument for not allowing players to cheat, we also do not support entirely forbidding access to information. If someone is willing to put in the effort, they can also cheat by altering the savegame memory or hex-editing the game executable, which is just a step or two further of reversing a Lua file. You can never prevent this completely, and if the players end up ruining their gaming experience, we say – it’s on them.<br><br>
+    If you still want encryption, the source of this plugin is available on GitHub, you can implement any kind of encryption you want, at your own discretion. However, it will not come from us.
+    </p>
+    <hr>
+    <a name="id3"><h3>Using the precompilation tool (LuaCompiler)</h3></a>
+    <p>If you snooped around the contents of the <span class="var">Plugin_ParticleSystem.zip</span> archive, you may have noticed a folder in there, <span class="var">LuaCompiler</span>.<br><br>
+    This folder contains a simple, rudimentary tool for generating a precompiled binary (<span class="var">.luac</span>) out of a plain-text Lua file  (<span class="var">.lua</span>). It has a simple drag-and-drop interface (either after launching the program and dropping the <span class="var">.lua</span> files on the window, or directly onto the program EXE icon). The tool generates corresponding binary files out of the given Lua text files, in the same directory as the input files.<br><br>
+    Of course, the end goal is for the binary files to take place of the text files. This way, when the level becomes available to the public, the contents of the modules and level scripts is less likely to be altered. Minding the fact that the plugin prioritizes loading the text files first, one should remove the text versions (<span class="var">.lua</span>) from the <span class="var">levelscripts</span> and <span class="var">effects</span> folders, leaving just the binaries (<span class="var">.luac</span>) behind.<br><br>
+    A very important thing to note is that the tool can only do a one-way conversion from text to binary! It cannot convert back from binary to a text file. For this reason, you should make sure that you generate the precompiled scripts at the last stages of preparing your custom level package (right before sending it to a level hosting site or elsewhere), as well as keeping the original text-form script files (modules and level scripts) in a safe place, just in case. Even though in a pinch, it would be possible to partially recover the contents of a script from a binary (for example with the online decompiling tool linked above), the original identifiers as well as any comments may be lost in the process. Perhaps, this has far bigger consequences for module coders (who may lose their entire work) than builders, but still, it’s advisable to play it safe and back everything up just before the final conversion to binary files. The tool does not delete the <span class="var">.lua</span> files by itself, in order to make this process extra safe.<br><br>
+    </p>
+    <hr>
+    <a name="id4"><h3>Enforcing script integrity</h3></a>
+    <p>Precompiling your script files should protect the contents of Lua scripts from being tampered with (well, as much as it’s possible without resorting to full encryption). Unfortunately, precomilation is of no help when players can just go and delete the script files, even in binary <span class="var">.luac</span> format! The good news is that the plugin provides a solution for this as well…<br><br>
+    The plugin has another <span class="var">CUST_</span> constant that comes with it. It is <span class="var">CUST_SCRIPT_INTEGRITY</span>, with two possible options: <span class="var">ENABLED</span> or <span class="var">DISABLED</span>. By default, script integrity is disabled after installing the plugin in a project.<br><br>
+    What does script integrity do, when enabled? It changes the behaviour of the game engine, so that it boots out of the game and displays an error message on screen, if any of the following are missing:
+    <ul>
+      <li>A level script from <span class="var">levelscripts</span>, connected with any level with <span class="var">CUST_LEVEL_SCRIPTS</span>. Level scripts that are not connected with any levels are not taken into account.
+      <li>A module script from <span class="var">effects</span>, imported with <span class="var">require()</span> into any level script being used (as mentioned in the point above). Again, modules not imported in any level script are not taken into account.
+    </ul>
+    What this means is that if a specific script file is requested and the plugin attempts to load it, but is unable to find it, enabled script integrity forces the game to abort with an error message, informing that a specific level script or module is missing.<br><br>
+    Of course, there is a chance for this to happen due to the builder overlooking something (in which case, the script integrity helps the builder to catch it). However, the main goal is to prevent players from playing a game that does not have everything in place. This does not necessarily mean maliciousness on the player’s part, but also e.g. something going wrong while extracting the playable level from an archive (<span class="var">.zip</span> or <span class="var">.rar</span>). The error message informs what asset is missing, allowing the builder / player to rectify the issue.<br><br>
+    The <span class="var">CUST_SCRIPT_INTEGRITY</span> is recommended to be a global setting, meaning it should go in the <span class="var">[Title]</span> section, where other global <span class="var">CUST_</span> commands can be used. However, it can also be used in a <span class="var">[Level]</span> section, to override the setting for a specific level. This can be useful, for example, if certain levels are done and can have script integrity enforced, but some levels are still work-in-progress and for them, you want to switch off integrity enforcement, while they are being worked on.<br><br>
+    Switching on script integrity is strongly recommended, especially if the particle effect influences gameplay or progression in important ways, and removing or misplacing a level script / module can lead to serious bugs or softlocks. That being said, just like script precompilation, it is an optional extra measure.
+    <hr>
+    <a name="id5"><h3>Recommended workflow for precompiling scripts</h3></a>
+    Taking the above instructions and precautions into account, here is a recommended workflow for when to generate precompiled binaries:
+    <ol>
+      <li>Create your level script files</li>
+      <li>Import and customize modules as needed whilst building your levels</li>
+      <li>Verify everything works correctly and needs no further adjusting</li>
+      <li><u>Backup level scripts from <span class="var">levelscripts</span> folder and modules from <span class="var">effects</span> folder!</u>
+      <li>Use the <strong>LuaCompiler</strong> tool on all <span class="var">.lua</span> text files present in both <span class="var">levelscripts</span> and <span class="var">effects</span> folders
+      <li>Delete the <span class="var">.lua</span> versions of the files from <span class="var">levelscripts</span> and <span class="var">effects</span>
+      <li>Enable script integrity enforcement with <span class="var">Customize= CUST_SCRIPT_INTEGRITY, ENABLED</span> added to the <span class="var">[Title]</span> section.
+    </ol><br>
+    Of course, there could be other, perhaps more efficient workflows to prepare a playable package while utilizing this plugin. But whatever you end up doing, you should always back up the text versions of the scripts – there is no easy way to retrieve them once they’re gone!
+    <hr>
+    <table width=100%>
+    <tr>
+    <td><a href="Chapter2.html"><strong>&lt;&lt;&lt;&nbsp;PREV</strong></a></td>
+    <!-- <td style="text-align: right"><a href="Chapter4.html" ><strong>NEXT&nbsp;&gt;&gt;&gt;</strong></a></td>-->
+    </tr>
+    </table>
+  </body>
+</html>
